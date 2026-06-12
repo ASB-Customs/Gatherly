@@ -1,4 +1,4 @@
-// /api/auth - Discord OAuth login, session management, server connection settings.
+// /api/auth - Discord OAuth login, session management
 
 import {
   json, redirect, usersStore, eventsStore, requireUser,
@@ -16,20 +16,15 @@ export default async (req) => {
   const clientId = process.env.DISCORD_CLIENT_ID;
   const clientSecret = process.env.DISCORD_CLIENT_SECRET;
 
-  // ✅ FIX: always use origin (prevents mismatches)
-  const siteUrl = (process.env.SITE_URL || url.origin).replace(/\/$/, "");
+  // ✅ FORCE YOUR REAL DOMAIN (NO GUESSING = NO ERRORS)
+  const SITE_URL = "https://bright-capybara-c7d7a5.netlify.app";
 
-  // ✅ FIX: build redirect URI safely
-  const redirectUriObj = new URL("/api/auth", siteUrl);
-  redirectUriObj.searchParams.set("action", "callback");
-  const redirectUri = redirectUriObj.toString();
+  const redirectUri = `${SITE_URL}/api/auth?action=callback`;
 
-  // ---- start: send user to Discord ----
+  // ---------------- LOGIN START ----------------
   if (action === "start") {
     if (!clientId || !clientSecret) {
-      return redirect("/login?error=" + encodeURIComponent(
-        "Discord login is not configured. Set env vars in Netlify."
-      ));
+      return redirect("/login?error=Discord not configured");
     }
 
     const state = crypto.randomUUID();
@@ -48,7 +43,7 @@ export default async (req) => {
     });
   }
 
-  // ---- callback ----
+  // ---------------- CALLBACK ----------------
   if (action === "callback") {
     const code = url.searchParams.get("code");
     const state = url.searchParams.get("state");
@@ -57,9 +52,10 @@ export default async (req) => {
       (req.headers.get("cookie") || "").match(/gatherly_state=([^;]+)/)?.[1];
 
     if (!code || !state || state !== cookieState) {
-      return redirect("/login?error=" + encodeURIComponent("State mismatch. Try again."));
+      return redirect("/login?error=Invalid state");
     }
 
+    // Exchange code for token
     const tokenRes = await fetch(TOKEN_URL, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -73,9 +69,7 @@ export default async (req) => {
     });
 
     if (!tokenRes.ok) {
-      return redirect("/login?error=" + encodeURIComponent(
-        "Discord rejected login. Check redirect URL in Discord Developer Portal."
-      ));
+      return redirect("/login?error=Discord rejected login (redirect mismatch)");
     }
 
     const tokens = await tokenRes.json();
@@ -85,7 +79,7 @@ export default async (req) => {
     });
 
     if (!infoRes.ok) {
-      return redirect("/login?error=" + encodeURIComponent("Failed to fetch Discord profile."));
+      return redirect("/login?error=Failed to fetch Discord user");
     }
 
     const info = await infoRes.json();
@@ -93,19 +87,15 @@ export default async (req) => {
     const store = usersStore();
     const userId = `dsc_${info.id}`;
 
-    const existing = (await store.get(userId, { type: "json" })) || {};
-
     const avatar = info.avatar
       ? `https://cdn.discordapp.com/avatars/${info.id}/${info.avatar}.png`
       : null;
 
     await store.setJSON(userId, {
-      ...existing,
       id: userId,
       discordId: info.id,
       username: info.global_name || info.username,
       avatar,
-      plan: existing.plan || "basic",
       updatedAt: new Date().toISOString(),
     });
 
@@ -114,28 +104,20 @@ export default async (req) => {
     });
   }
 
-  // ---- me ----
+  // ---------------- ME ----------------
   if (action === "me") {
     const user = await requireUser(req);
     if (!user) return json({ user: null }, 401);
 
-    return json({
-      user: {
-        id: user.id,
-        username: user.username,
-        avatar: user.avatar,
-        plan: user.plan,
-        role: user.role || null,
-      },
-    });
+    return json({ user });
   }
 
-  // ---- logout ----
+  // ---------------- LOGOUT ----------------
   if (action === "logout" && req.method === "POST") {
     return json({ ok: true }, 200, {
       "Set-Cookie": clearSessionCookie(),
     });
   }
 
-  return json({ error: "Unknown action." }, 404);
+  return json({ error: "Unknown action" }, 404);
 };
