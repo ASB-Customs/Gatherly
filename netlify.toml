@@ -1,0 +1,86 @@
+[build]
+  publish = "public"
+  functions = "netlify/functions"
+
+# API routes -> serverless functions
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+# Pretty page URLs
+[[redirects]]
+  from = "/events"
+  to = "/events.html"
+  status = 200
+
+[[redirects]]
+  from = "/advertise"
+  to = "/advertise.html"
+  status = 200
+
+[[redirects]]
+  from = "/dashboard"
+  to = "/dashboard.html"
+  status = 200
+
+[[redirects]]
+  from = "/settings"
+  to = "/settings.html"
+  status = 200
+
+[[redirects]]
+  from = "/servers"
+  to = "/settings.html"
+  status = 301
+
+[[redirects]]
+  from = "/admin"
+  to = "/admin.html"
+  status = 200
+
+[[redirects]]
+  from = "/pricing"
+  to = "/pricing.html"
+  status = 200
+
+[[redirects]]
+  from = "/reports"
+  to = "/reports.html"
+  status = 200
+
+[[redirects]]
+  from = "/login"
+  to = "/login.html"
+  status = 200
+
+[[redirects]]
+  from = "/contact"
+  to = "/contact.html"
+  status = 200
+
+[[redirects]]
+  from = "/terms"
+  to = "/legal.html"
+  status = 200
+
+[[redirects]]
+  from = "/privacy"
+  to = "/legal.html"
+  status = 200
+
+# ---------- security headers (all pages) ----------
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=()"
+    Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://api.fontshare.com; font-src 'self' https://cdn.fontshare.com; img-src 'self' data: blob: https://cdn.discordapp.com; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://checkout.stripe.com"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
