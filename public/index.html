@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gatherly - Event advertising and analytics for ER:LC</title>
+  <meta name="description" content="ER:LC event advertising with post-event analytics. Fill your server, then prove it worked with verified ER:LC API reports.">
+  <meta property="og:title" content="Gatherly - Fill every session. Then prove it worked.">
+  <meta property="og:description" content="ER:LC event advertising with post-event analytics.">
+  <link rel="icon" href="/assets/favicon.png">
+  <link rel="preconnect" href="https://api.fontshare.com">
+  <link href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600&f[]=general-sans@400,500,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<nav id="nav"></nav>
+
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="hero-pulse"><b id="liveCount">-</b><span id="pulseLabel">events live right now</span></span>
+      <h1 id="heroHeadline">Fill every session.<br>Then <span class="accent">prove it worked.</span></h1>
+      <p class="lede" id="heroSub">ER:LC event advertising with post-event analytics.</p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="/advertise">Advertise your event</a>
+        <a class="btn btn-ghost" href="/events">Browse live events</a>
+      </div>
+    </div>
+    <div class="radar" id="heroRadar" aria-hidden="false"></div>
+  </div>
+</header>
+
+<div class="ticker-wrap" id="tickerWrap" hidden>
+  <div class="ticker" id="ticker"></div>
+</div>
+
+<section class="section">
+  <div class="wrap">
+    <div class="reveal"><span class="kicker">Reach</span>
+      <h2>Built where ER:LC players already are</h2></div>
+    <div class="grid grid-3" style="margin-top:34px">
+      <div class="stat reveal reveal-d1"><b>38k+</b><span>Players browsing Gatherly listings each week</span></div>
+      <div class="stat reveal reveal-d2"><b>1,200+</b><span>Roleplay events advertised every month</span></div>
+      <div class="stat reveal reveal-d3"><b>3.1%</b><span>Listing views converting to in-server joins</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="reveal"><span class="kicker">How it works</span>
+      <h2>You list it. We measure it.</h2>
+      <p style="margin-top:10px;max-width:560px">The same event, seen from both sides: what players see in the feed, and the report you get back when it ends.</p></div>
+    <div class="split" style="margin-top:34px">
+      <div class="card reveal reveal-d1">
+        <span class="badge">What players see</span>
+        <h3>Your listing in the discovery feed</h3>
+        <div class="mock">
+          <div class="row"><b>Friday Night Border Patrol</b><span class="badge badge-live">Live</span></div>
+          <div class="row"><span>Scenario</span><b>Border patrol</b></div>
+          <div class="row"><span>Starts</span><b>7:00 PM, your timezone</b></div>
+          <div class="row"><span>Ends</span><b>8:30 PM · 90 min max</b></div>
+          <div class="row"><span>Join</span><b style="color:var(--signal)">One-click code reveal</b></div>
+        </div>
+      </div>
+      <div class="card reveal reveal-d2">
+        <span class="badge badge-boost">What you get back</span>
+        <h3>The engagement report</h3>
+        <div class="mock">
+          <div class="row"><span>Event Health Score</span><b style="color:var(--signal)">78 / 100</b></div>
+          <div class="row"><span>Funnel</span><b>820 views → 29 entries → 19 retained</b></div>
+          <div class="row"><span>Benchmark</span><b>71st percentile for border patrols</b></div>
+          <div class="row"><span>Forecast</span><b>Next event: 55-70 joins projected</b></div>
+          <div class="row"><span>AI summary</span><b>What happened, in plain English</b></div>
+        </div>
+        <a href="/reports" class="btn btn-ghost btn-sm" style="align-self:flex-start">See a full sample report</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="reveal"><span class="kicker">Features</span>
+      <h2>Everything a host needs, nothing they don't</h2></div>
+    <div class="grid grid-3" style="margin-top:34px">
+      <div class="card reveal reveal-d1"><h3>Event Health Score</h3><p>One number, 0 to 100, scoring fill rate, retention, growth, conversion, and staffing. The score hosts compete on.</p></div>
+      <div class="card reveal reveal-d2"><h3>Player lifecycle funnel</h3><p>See exactly where players drop off: listing view, code reveal, server entry, 30-minute retention.</p></div>
+      <div class="card reveal reveal-d3"><h3>Predictive forecasting</h3><p>After three events, Gatherly projects joins and peak attendance for your next session from your own history.</p></div>
+      <div class="card reveal reveal-d1"><h3>Scenario benchmarking</h3><p>Your event ranked against every same-scenario event on the platform in the last 30 days. Only a network can do this.</p></div>
+      <div class="card reveal reveal-d2"><h3>Staff intelligence</h3><p>Mod-call response times, per-staff command activity, and idle staff detection. A staff audit inside every report.</p></div>
+      <div class="card reveal reveal-d3"><h3>AI report summaries</h3><p>Every report ends with a plain-English read of what happened, the trend it continues, and one concrete fix for next time.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="reveal"><span class="kicker">FAQ</span><h2>Frequently asked questions</h2></div>
+    <div class="grid grid-2" style="margin-top:34px">
+      <div class="card reveal"><h3>How does pricing work?</h3><p>Listing an event is free. Paid plans add boost credits, full analytics, and Discord delivery. Pay by card through Stripe's secure checkout, or with Robux via gamepass verification. <a href="/pricing">See pricing</a>.</p></div>
+      <div class="card reveal reveal-d1"><h3>How do reports work?</h3><p>Connect your ER:LC server API key in Settings. When your event ends, Gatherly pulls your server data for the event window and compiles the full report. <a href="/reports">See a sample</a>.</p></div>
+      <div class="card reveal"><h3>How long can events run?</h3><p>Events run up to 90 minutes. When the end time passes, the listing leaves the discovery feed automatically and the report window closes.</p></div>
+      <div class="card reveal reveal-d1"><h3>Is my server data safe?</h3><p>Your API key is encrypted at rest with AES-256 and only used to read statistics for your event window. Gatherly never issues commands to your server. Full details in the <a href="/privacy">privacy policy</a>.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap" style="text-align:center">
+    <div class="reveal">
+      <h2>Your next event deserves a full server</h2>
+      <p style="margin:14px auto 28px;max-width:480px">List in under two minutes, reach ER:LC players who are already looking, and finish with a report you can show your staff team.</p>
+      <a class="btn btn-primary" href="/advertise">Start now</a>
+    </div>
+  </div>
+</section>
+
+<footer id="footer"></footer>
+
+<script type="module" src="/js/pages/index.js"></script>
+</body>
+</html>

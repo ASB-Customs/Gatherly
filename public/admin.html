@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin - Gatherly</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/assets/favicon.png">
+  <link rel="preconnect" href="https://api.fontshare.com">
+  <link href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600&f[]=general-sans@400,500,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<nav id="nav"></nav>
+
+<header class="section" style="padding-bottom:28px">
+  <div class="wrap">
+    <span class="kicker">Admin</span>
+    <h1 style="font-size:clamp(2rem,4vw,3rem)">Control room</h1>
+    <p style="margin-top:8px" id="role">Every action here is written to the audit log.</p>
+  </div>
+</header>
+
+<section class="wrap" style="padding-bottom:80px;display:grid;gap:18px">
+  <div class="card" id="gate" hidden>
+    <h3>Staff access required</h3>
+    <p style="margin:6px 0 14px">This page is for Gatherly staff. If you have the executive setup code, claim the role below. Otherwise you can request admin access and an executive will review it.</p>
+    <label class="field">Executive setup code
+      <input id="execCode" type="password" autocomplete="off">
+    </label>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-sm" id="claimExec">Claim executive role</button>
+      <button class="btn btn-ghost btn-sm" id="reqAdmin">Request admin access</button>
+    </div>
+    <div id="gateMsg" style="margin-top:12px"></div>
+  </div>
+
+  <div id="panel" hidden style="display:grid;gap:18px">
+    <div id="msg"></div>
+
+    <div class="card">
+      <h3>Site content</h3>
+      <p style="font-size:.88rem;margin:6px 0 14px">Edits the homepage hero live, no deploy needed.</p>
+      <div class="grid grid-2">
+        <label class="field">Hero headline<input id="heroHeadline" maxlength="200"></label>
+        <label class="field">Hero subline<input id="heroSub" maxlength="200"></label>
+      </div>
+      <button class="btn btn-primary btn-sm" id="saveContent">Save content</button>
+    </div>
+
+    <div class="card">
+      <h3>All events</h3>
+      <div id="evTable" style="margin-top:14px;overflow-x:auto"><p>Loading…</p></div>
+    </div>
+
+    <div class="card" id="evEdit" hidden>
+      <h3>Edit event</h3>
+      <div class="grid grid-2" style="margin-top:12px">
+        <label class="field">Title<input id="eTitle" maxlength="80"></label>
+        <label class="field">Scenario<input id="eScenario" maxlength="40"></label>
+        <label class="field">Start time<input id="eStartsAt" type="datetime-local"></label>
+        <label class="field">Length (minutes, 15-90)<input id="eDuration" type="number" min="15" max="90"></label>
+      </div>
+      <label class="field">Description<textarea id="eDesc" rows="2" maxlength="400"></textarea></label>
+      <label class="field" style="display:flex;align-items:center;gap:10px;font-weight:500">
+        <input type="checkbox" id="eBoosted" style="width:auto;margin:0"> Boosted placement
+      </label>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-primary btn-sm" id="saveEvent">Save changes</button>
+        <button class="btn btn-ghost btn-sm" id="cancelEdit">Cancel</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Users</h3>
+      <div id="userTable" style="margin-top:14px;overflow-x:auto"><p>Loading…</p></div>
+    </div>
+
+    <div class="card" id="execTools" hidden>
+      <h3>Staff roles <span class="badge badge-boost">Executive only</span></h3>
+      <div class="grid grid-2" style="margin-top:12px">
+        <label class="field">Username<input id="roleUser" autocomplete="off"></label>
+        <label class="field">Role
+          <select id="roleSel"><option value="admin">admin</option><option value="executive">executive</option><option value="none">none (remove)</option></select>
+        </label>
+      </div>
+      <button class="btn btn-primary btn-sm" id="setRole">Apply role</button>
+      <div id="adminReqs" style="margin-top:18px"></div>
+    </div>
+
+    <div class="card">
+      <h3>Audit log</h3>
+      <p style="font-size:.88rem;margin:6px 0 14px">Last 100 staff and host actions, newest first.</p>
+      <button class="btn btn-ghost btn-sm" id="loadAudit">Load audit log</button>
+      <div id="auditOut" style="margin-top:14px;overflow-x:auto"></div>
+    </div>
+  </div>
+</section>
+
+<footer id="footer"></footer>
+
+<script type="module" src="/js/pages/admin.js"></script>
+</body>
+</html>

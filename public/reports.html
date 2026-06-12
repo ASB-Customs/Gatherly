@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Engagement reports - Gatherly</title>
+  <link rel="icon" href="/assets/favicon.png">
+  <link rel="preconnect" href="https://api.fontshare.com">
+  <link href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600&f[]=general-sans@400,500,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<nav id="nav"></nav>
+
+<header class="section" style="padding-bottom:28px">
+  <div class="wrap">
+    <span class="kicker">Engagement reports</span>
+    <h1 style="font-size:clamp(2rem,4vw,3rem)">Verified numbers, not vibes</h1>
+    <p style="margin-top:10px;max-width:620px">Every report is compiled from data pulled directly through the official ER:LC API for your event window, scored, benchmarked against the platform, forecast forward, and summarised in plain English by AI. This is a sample of what hosts receive.</p>
+  </div>
+</header>
+
+<section class="wrap" style="padding-bottom:80px">
+  <div id="loading" style="text-align:center;padding:40px 0">
+    <div class="radar mini" id="loadRadar"></div>
+    <p style="margin-top:38px;font-size:.85rem;letter-spacing:.1em;text-transform:uppercase">Compiling sample report</p>
+  </div>
+  <div id="report" hidden></div>
+  <p class="note" style="margin-top:26px">Live reports generate from your <a href="/dashboard">dashboard</a> the moment an event ends. Connect your ER:LC API key in <a href="/settings">Settings</a> to enable them.</p>
+</section>
+
+<footer id="footer"></footer>
+
+<script type="module" src="/js/pages/reports.js"></script>
+</body>
+</html>

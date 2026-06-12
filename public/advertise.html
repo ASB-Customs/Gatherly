@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Advertise an event - Gatherly</title>
+  <link rel="icon" href="/assets/favicon.png">
+  <link rel="preconnect" href="https://api.fontshare.com">
+  <link href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600&f[]=general-sans@400,500,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<nav id="nav"></nav>
+
+<header class="section" style="padding-bottom:28px">
+  <div class="wrap">
+    <span class="kicker">Advertise</span>
+    <h1 style="font-size:clamp(2rem,4vw,3rem)">List your event</h1>
+    <p style="margin-top:10px;max-width:560px">Two minutes to fill in, live to the whole feed the moment you publish. Events run for up to 90 minutes and leave the feed automatically when they end.</p>
+  </div>
+</header>
+
+<section class="wrap" style="padding-bottom:80px;max-width:760px">
+  <div class="card" id="gate" hidden>
+    <h3>Log in to list an event</h3>
+    <p>Listings are tied to your Discord account so reports reach the right host.</p>
+    <a class="btn btn-primary btn-sm" href="/api/auth?action=start" style="margin-top:12px">Continue with Discord</a>
+  </div>
+
+  <div class="card" id="formCard">
+    <div id="msg"></div>
+
+    <label class="field">Event title
+      <input id="title" maxlength="80" placeholder="Friday Night Border Patrol" autocomplete="off">
+    </label>
+
+    <label class="field">Scenario
+      <select id="scenario">
+        <option>Border patrol</option><option>Pursuit</option><option>Storm scenario</option>
+        <option>Court trial</option><option>Community day</option><option>Department tryout</option>
+        <option>Roleplay</option>
+      </select>
+    </label>
+
+    <label class="field">Description <small>What players should expect. Keep it tight.</small>
+      <textarea id="description" rows="3" maxlength="400"></textarea>
+    </label>
+
+    <div class="grid grid-2">
+      <label class="field">Start time <small>Shown to players in their own timezone.</small>
+        <input id="startsAt" type="datetime-local">
+      </label>
+      <label class="field">Length <small>Platform maximum is 90 minutes.</small>
+        <select id="durationMin">
+          <option value="30">30 minutes</option>
+          <option value="45">45 minutes</option>
+          <option value="60" selected>60 minutes</option>
+          <option value="75">75 minutes</option>
+          <option value="90">90 minutes (max)</option>
+        </select>
+      </label>
+    </div>
+    <p class="note" id="endPreview">Pick a start time to see when your event ends.</p>
+
+    <label class="field">Private server join code
+      <input id="joinCode" maxlength="32" placeholder="A4F2K9" autocomplete="off">
+      <small>Hidden until 15 minutes before start, then revealed to players in one click.</small>
+    </label>
+
+    <label class="field">Banner <small>Exactly 1200x480px, under 2MB. JPG, PNG, or WebP.</small></label>
+    <div class="dropzone" id="dz" role="button" tabindex="0" aria-label="Upload banner">
+      <span id="dzText">Drag a 1200x480 banner here, or click to choose a file</span>
+      <input type="file" id="dzInput" accept="image/jpeg,image/png,image/webp" hidden>
+    </div>
+
+    <label class="field" style="margin-top:18px">Also send the report to <small>Optional. A Discord user ID - the Gatherly bot DMs them the report alongside you. They must share a server with the bot and allow DMs.</small>
+      <input id="reportRecipientId" maxlength="32" placeholder="123456789012345678" inputmode="numeric" autocomplete="off">
+    </label>
+
+    <!-- honeypot: bots fill this, people never see it -->
+    <input class="hp" id="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+
+    <button class="btn btn-primary" id="publish" style="margin-top:8px">Publish listing</button>
+  </div>
+</section>
+
+<footer id="footer"></footer>
+
+<script type="module" src="/js/pages/advertise.js"></script>
+</body>
+</html>

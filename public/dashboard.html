@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard - Gatherly</title>
+  <link rel="icon" href="/assets/favicon.png">
+  <link rel="preconnect" href="https://api.fontshare.com">
+  <link href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600&f[]=general-sans@400,500,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<nav id="nav"></nav>
+
+<header class="section" style="padding-bottom:28px">
+  <div class="wrap" style="display:flex;justify-content:space-between;align-items:flex-end;gap:18px;flex-wrap:wrap">
+    <div>
+      <span class="kicker">Dashboard</span>
+      <h1 style="font-size:clamp(2rem,4vw,3rem)">Host control</h1>
+      <p style="margin-top:8px" id="hello">Your events, your reports, your numbers.</p>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center" id="hostBadges"></div>
+  </div>
+</header>
+
+<section class="wrap" style="padding-bottom:80px;display:grid;gap:18px">
+  <div class="card" id="gate" hidden>
+    <h3>Log in to open your dashboard</h3>
+    <a class="btn btn-primary btn-sm" href="/api/auth?action=start" style="margin-top:12px">Continue with Discord</a>
+  </div>
+
+  <div id="msg"></div>
+
+  <div class="card" id="eventsCard">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap">
+      <h3>Your events</h3>
+      <a class="btn btn-primary btn-sm" href="/advertise">List a new event</a>
+    </div>
+    <div id="myEvents" style="margin-top:16px"><p>Loading…</p></div>
+  </div>
+
+  <div class="card">
+    <h3>Best time to host</h3>
+    <p style="font-size:.85rem;margin:6px 0 16px">Platform-wide average joins by day and hour (UTC), from every reported event on Gatherly. Brighter means busier.</p>
+    <div id="heatmapWrap"><p>Loading…</p></div>
+  </div>
+
+  <div id="reportLoading" hidden style="text-align:center;padding:30px 0">
+    <div class="radar mini" id="reportRadar"></div>
+    <p style="margin-top:38px;font-size:.85rem;letter-spacing:.1em;text-transform:uppercase">Pulling verified data from the ER:LC API</p>
+  </div>
+  <div id="reportOut"></div>
+</section>
+
+<footer id="footer"></footer>
+
+<script type="module" src="/js/pages/dashboard.js"></script>
+</body>
+</html>

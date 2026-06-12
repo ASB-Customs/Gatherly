@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Log in - Gatherly</title>
+  <link rel="icon" href="/assets/favicon.png">
+  <link rel="preconnect" href="https://api.fontshare.com">
+  <link href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600&f[]=general-sans@400,500,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<nav id="nav"></nav>
+
+<section class="section" style="min-height:60vh;display:flex;align-items:center">
+  <div class="wrap" style="max-width:480px;width:100%">
+    <div class="card" style="text-align:center;padding:40px 30px">
+      <img src="/assets/logo-white.webp" alt="Gatherly" width="46" height="54" style="margin:0 auto 18px">
+      <h1 style="font-size:1.8rem">Sign in to Gatherly</h1>
+      <p style="margin:10px 0 24px">One click with Discord. We receive your username and avatar, never your email or password.</p>
+      <div id="err"></div>
+      <a class="btn btn-primary" href="/api/auth?action=start" style="width:100%">Continue with Discord</a>
+      <p class="note" style="text-align:left;margin-top:22px">By signing in you agree to the <a href="/terms">Terms of Service</a> and <a href="/privacy">Privacy Policy</a>.</p>
+    </div>
+  </div>
+</section>
+
+<footer id="footer"></footer>
+
+<script type="module" src="/js/pages/login.js"></script>
+</body>
+</html>

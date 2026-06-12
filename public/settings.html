@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Settings - Gatherly</title>
+  <link rel="icon" href="/assets/favicon.png">
+  <link rel="preconnect" href="https://api.fontshare.com">
+  <link href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600&f[]=general-sans@400,500,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<nav id="nav"></nav>
+
+<header class="section" style="padding-bottom:28px">
+  <div class="wrap">
+    <span class="kicker">Settings</span>
+    <h1 style="font-size:clamp(2rem,4vw,3rem)">Connections</h1>
+    <p style="margin-top:10px;max-width:560px">Wire your ER:LC server and Discord delivery once, and every report after that compiles itself.</p>
+  </div>
+</header>
+
+<section class="wrap" style="padding-bottom:80px;max-width:760px;display:grid;gap:18px">
+  <div class="card" id="gate" hidden>
+    <h3>Log in to manage settings</h3>
+    <a class="btn btn-primary btn-sm" href="/api/auth?action=start" style="margin-top:12px">Continue with Discord</a>
+  </div>
+
+  <div id="msg"></div>
+
+  <div class="card" id="erlcCard">
+    <h3>ER:LC server API key</h3>
+    <p style="font-size:.88rem;margin:6px 0 14px">From in-game: Server Settings, then API. The server must own the ER:LC API Pack. Your key is encrypted at rest with AES-256 and only ever used to read statistics. Gatherly never sends commands to your server.</p>
+    <label class="field">API key
+      <input id="erlcKey" type="password" placeholder="Paste your server key" autocomplete="off">
+    </label>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-sm" id="saveKey">Save key</button>
+      <button class="btn btn-ghost btn-sm" id="testKey">Test connection</button>
+      <button class="btn btn-danger btn-sm" id="removeKey">Remove key</button>
+    </div>
+    <div id="keyStatus" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <h3>Report delivery</h3>
+    <p style="font-size:.88rem;margin:6px 0 14px">Reports always render in your dashboard. They can also reach you on Discord.</p>
+    <label class="field">Discord webhook <small>Posts each report into a channel you control. Server Settings, Integrations, Webhooks, then copy the URL.</small>
+      <input id="webhook" placeholder="https://discord.com/api/webhooks/…" autocomplete="off">
+    </label>
+    <label class="field" style="display:flex;align-items:center;gap:10px;font-weight:500">
+      <input type="checkbox" id="dmOptIn" style="width:auto;margin:0">
+      DM me each report via the Gatherly bot <small style="margin:0 0 0 4px">(you must share a server with the bot and allow DMs)</small>
+    </label>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-sm" id="saveDelivery">Save delivery settings</button>
+      <button class="btn btn-ghost btn-sm" id="removeWebhook">Remove webhook</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Connection diagnostics</h3>
+    <p style="font-size:.88rem;margin:6px 0 14px">If reports will not generate, this panel says exactly which link in the chain is broken.</p>
+    <button class="btn btn-ghost btn-sm" id="runDiag">Run diagnostics</button>
+    <div id="diagOut" style="margin-top:14px"></div>
+  </div>
+
+  <div class="card">
+    <h3>Account</h3>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+      <button class="btn btn-ghost btn-sm" id="logout">Log out</button>
+      <button class="btn btn-danger btn-sm" id="deleteAccount">Delete account and all my events</button>
+    </div>
+    <p class="note" style="margin-top:14px">Deletion is immediate and permanent. It removes your account record, your encrypted API key, and every event you have listed.</p>
+  </div>
+</section>
+
+<footer id="footer"></footer>
+
+<script type="module" src="/js/pages/settings.js"></script>
+</body>
+</html>
