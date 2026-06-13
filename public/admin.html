@@ -4,25 +4,35 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Control room - Gatherly</title>
-  <meta name="robots" content="noindex">
   <link rel="icon" href="/assets/favicon.png">
   <link rel="preconnect" href="https://api.fontshare.com">
   <link href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600&f[]=general-sans@400,500,600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
-  <link rel="stylesheet" href="/css/admin-additions.css">
+  <style>
+    .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; border-bottom: 1px solid var(--line); padding-bottom: 0; }
+    .tab { background: none; border: none; border-bottom: 2px solid transparent; color: var(--muted); font-family: var(--font-body); font-weight: 600; font-size: .9rem; padding: 10px 14px; cursor: pointer; transition: color .15s, border-color .15s; }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--text); border-bottom-color: var(--signal); }
+    .tab-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--bad); color: #fff; font-size: .7rem; margin-left: 4px; }
+    .tbl { width: 100%; border-collapse: collapse; }
+    .tbl th { text-align: left; font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); padding: 8px 10px; border-bottom: 1px solid var(--line); }
+    .tbl td { padding: 10px; border-bottom: 1px solid var(--line); font-size: .9rem; vertical-align: middle; }
+    .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  </style>
 </head>
 <body>
 <nav id="nav"></nav>
 
-<header class="section" style="padding-bottom:28px">
+<header class="section" style="padding-bottom:20px">
   <div class="wrap">
-    <span class="kicker">Staff</span>
-    <h1 style="font-size:clamp(2rem,4vw,3rem)">Control room</h1>
-    <p style="margin-top:8px" id="role">Every action here is written to the audit log.</p>
+    <a href="/" class="back-home">&larr; Back to home</a>
+    <span class="kicker">Control room</span>
+    <h1 style="font-size:clamp(2rem,4vw,3rem)">Staff control</h1>
+    <p style="margin-top:8px" id="role">Checking access&hellip;</p>
   </div>
 </header>
 
-<section class="wrap" style="padding-bottom:80px;display:grid;gap:18px">
+<section class="wrap" style="padding-bottom:80px">
   <div class="card" id="gate" hidden></div>
   <div id="panel" hidden></div>
 </section>
