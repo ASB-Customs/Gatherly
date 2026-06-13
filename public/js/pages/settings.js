@@ -1,4 +1,3 @@
-// /js/pages/settings.js
 import { boot, api, esc } from "/js/app.js";
 
 boot("/settings");
@@ -17,20 +16,21 @@ async function init() {
     me = d.user;
   } catch { me = null; }
   if (!me) { $("gate").hidden = false; return; }
+  $("staffCard").hidden = false;
   renderStaffStatus();
   loadDelivery();
 }
 
-// ---------------- Staff access (new) ----------------
 function renderStaffStatus() {
   const status = $("staffStatus");
   if (me.role === "executive" || me.role === "admin") {
     status.innerHTML = `<div class="notice ok">You have ${esc(me.role)} access.
       <a href="/admin" style="margin-left:6px"><b>Open the control room →</b></a></div>`;
   } else {
-    status.innerHTML = "";
+    status.innerHTML = `<p style="font-size:.85rem;color:var(--muted);margin-bottom:0">If you have been issued a staff access code, redeem it below.</p>`;
   }
 }
+
 const staffCode = () => $("staffCode").value.trim();
 $("redeemStaff").onclick = async () => {
   const sm = $("staffMsg");
@@ -51,14 +51,13 @@ $("claimExecStaff").onclick = async () => {
   } catch (e) { flash(sm, e.message); }
 };
 
-// ---------------- ER:LC key ----------------
 $("saveKey").onclick = async () => {
   const key = $("erlcKey").value.trim();
   if (!key) return flash($("keyStatus"), "Paste your server key first.");
   try {
     await api("/api/erlc?action=save-key", { method: "POST", body: { key } });
     $("erlcKey").value = "";
-    flash($("keyStatus"), "Key saved and encrypted.", true);
+    flash($("keyStatus"), "Key saved and encrypted with AES-256.", true);
   } catch (e) { flash($("keyStatus"), e.message); }
 };
 $("testKey").onclick = async () => {
@@ -74,26 +73,24 @@ $("removeKey").onclick = async () => {
   catch (e) { flash($("keyStatus"), e.message); }
 };
 
-// ---------------- Delivery ----------------
 async function loadDelivery() {
   try {
     const d = await api("/api/erlc?action=delivery");
     if (d.webhook) $("webhook").value = d.webhook;
     $("dmOptIn").checked = Boolean(d.dmOptIn);
-  } catch { /* not configured yet — fine */ }
+  } catch { }
 }
 $("saveDelivery").onclick = async () => {
   try {
     await api("/api/erlc?action=save-delivery", { method: "POST", body: { webhook: $("webhook").value.trim(), dmOptIn: $("dmOptIn").checked } });
-    flash($("msg"), "Delivery settings saved.", true);
-  } catch (e) { flash($("msg"), e.message); }
+    flash($("deliveryMsg"), "Delivery settings saved.", true);
+  } catch (e) { flash($("deliveryMsg"), e.message); }
 };
 $("removeWebhook").onclick = async () => {
-  try { await api("/api/erlc?action=save-delivery", { method: "POST", body: { webhook: "", dmOptIn: $("dmOptIn").checked } }); $("webhook").value = ""; flash($("msg"), "Webhook removed.", true); }
-  catch (e) { flash($("msg"), e.message); }
+  try { await api("/api/erlc?action=save-delivery", { method: "POST", body: { webhook: "", dmOptIn: $("dmOptIn").checked } }); $("webhook").value = ""; flash($("deliveryMsg"), "Webhook removed.", true); }
+  catch (e) { flash($("deliveryMsg"), e.message); }
 };
 
-// ---------------- Diagnostics ----------------
 $("runDiag").onclick = async () => {
   const out = $("diagOut");
   out.innerHTML = `<p class="note">Running…</p>`;
@@ -105,7 +102,6 @@ $("runDiag").onclick = async () => {
   } catch (e) { out.innerHTML = `<p class="note">${esc(e.message)}</p>`; }
 };
 
-// ---------------- Account ----------------
 $("logout").onclick = async () => {
   try { await api("/api/auth?action=logout", { method: "POST" }); } catch {}
   location.href = "/";
