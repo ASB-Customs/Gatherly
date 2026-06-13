@@ -12,83 +12,26 @@
 <body>
 <nav id="nav"></nav>
 
-<header class="section" style="padding-bottom:36px">
+<header class="section" style="padding-bottom:20px">
   <div class="wrap" style="text-align:center">
     <span class="kicker" style="justify-content:center">Pricing</span>
-    <h1 style="font-size:clamp(2rem,4vw,3rem)">Listing is free. Winning is paid.</h1>
-    <p style="margin:12px auto 0;max-width:520px">Pay weekly by card through Stripe's secure checkout, or with Robux through gamepass verification. Cancel any time, no lock-in.</p>
+    <h1 style="font-size:clamp(2rem,4vw,3rem)">Pick the plan that fills your server</h1>
+    <p style="margin:12px auto 0;max-width:540px">Listing is always free. Paid plans add analytics, boost credits, and AI reporting. Billed monthly by default, with cheaper annual and one-time lifetime options. Cancel any time.</p>
   </div>
 </header>
 
 <section class="wrap" style="padding-bottom:80px">
-  <div id="msg"></div>
-  <div class="grid grid-4">
-    <div class="card plan reveal in">
-      <h3>Patrol</h3>
-      <div class="price">Free</div>
-      <ul>
-        <li>Unlimited event listings</li>
-        <li>Discovery feed placement</li>
-        <li>Core report: joins, peak, sessions</li>
-        <li>Join-code reveal and countdowns</li>
-      </ul>
-      <a class="btn btn-ghost btn-sm" href="/advertise" style="margin-top:auto">Start listing</a>
-    </div>
-
-    <div class="card plan reveal in">
-      <h3>Sergeant</h3>
-      <div class="price">$4.99<small> /week · or 500 Robux</small></div>
-      <ul>
-        <li>Everything in Patrol</li>
-        <li>Full Health Score and funnel</li>
-        <li>Scenario benchmarking</li>
-        <li>Discord webhook delivery</li>
-        <li>2 boost credits per week</li>
-      </ul>
-      <button class="btn btn-primary btn-sm" data-stripe="sergeant" style="margin-top:auto">Pay by card</button>
-      <button class="btn btn-ghost btn-sm" data-robux="sergeant">Pay with Robux</button>
-    </div>
-
-    <div class="card plan featured reveal in">
-      <span class="flag">Most popular</span>
-      <h3>Commander</h3>
-      <div class="price">$11.99<small> /week · or 1,200 Robux</small></div>
-      <ul>
-        <li>Everything in Sergeant</li>
-        <li>Forecasting and momentum index</li>
-        <li>Staff intelligence panel</li>
-        <li>AI report summaries</li>
-        <li>Bot DM delivery + extra recipient</li>
-        <li>6 boost credits per week</li>
-      </ul>
-      <button class="btn btn-primary btn-sm" data-stripe="commander" style="margin-top:auto">Pay by card</button>
-      <button class="btn btn-ghost btn-sm" data-robux="commander">Pay with Robux</button>
-    </div>
-
-    <div class="card plan reveal in">
-      <h3>Network</h3>
-      <div class="price">Custom</div>
-      <ul>
-        <li>Multiple servers, one account</li>
-        <li>Cross-server analytics</li>
-        <li>Priority support</li>
-        <li>Custom report branding</li>
-      </ul>
-      <a class="btn btn-ghost btn-sm" href="/contact" style="margin-top:auto">Talk to us</a>
+  <div style="display:flex;justify-content:center">
+    <div class="billing-toggle">
+      <button data-cycle="monthly" class="active">Monthly</button>
+      <button data-cycle="annual">Annually <span class="save-pill">Save</span></button>
+      <button data-cycle="lifetime">Lifetime</button>
     </div>
   </div>
 
-  <div class="card" id="robuxCard" hidden style="margin-top:18px;max-width:560px">
-    <h3>Verify your Robux purchase</h3>
-    <p style="font-size:.88rem;margin:6px 0 14px">Buy the gamepass on Roblox first, then verify here. We check ownership through the official Roblox API.</p>
-    <label class="field">Your Roblox user ID
-      <input id="robloxId" inputmode="numeric" placeholder="e.g. 1234567890" autocomplete="off">
-      <small>Found in your Roblox profile URL: roblox.com/users/<b>YOUR-ID</b>/profile</small>
-    </label>
-    <button class="btn btn-primary btn-sm" id="verifyRobux">Verify purchase</button>
-  </div>
+  <div class="grid grid-3" id="planGrid"></div>
 
-  <p class="note" style="margin-top:26px">Card payments are processed entirely by Stripe on Stripe's own checkout page. Gatherly never sees or stores card details. Weekly subscriptions can be cancelled any time and remain active until the end of the paid period. See the <a href="/terms">Terms of Service</a> for refund terms under Australian Consumer Law.</p>
+  <p class="note" style="margin-top:26px;text-align:center;max-width:640px;margin-left:auto;margin-right:auto">Card payments are processed entirely by Stripe on Stripe's own checkout page. Gatherly never sees or stores card details. Gatherly Ultra can also be paid with 2,500 Robux per month via gamepass verification. Weekly boost credits refresh with your plan. See the <a href="/terms">Terms of Service</a> for refund terms under Australian Consumer Law.</p>
 </section>
 
 <footer id="footer"></footer>
