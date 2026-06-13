@@ -14,23 +14,27 @@
 
 <header class="section" style="padding-bottom:28px">
   <div class="wrap">
+    <a href="/" class="back-home">&larr; Back to home</a>
     <span class="kicker">Support</span>
     <h1 style="font-size:clamp(2rem,4vw,3rem)">Talk to a person</h1>
-    <p style="margin-top:10px;max-width:520px">Billing questions, broken reports, takedown requests, or Network plan enquiries. We aim to reply within 48 hours.</p>
+    <p style="margin-top:10px;max-width:520px">Send a message and our team replies straight to your Discord DMs through the Gatherly bot. Billing questions, broken reports, takedowns, or plan enquiries.</p>
   </div>
 </header>
 
 <section class="wrap" style="padding-bottom:80px;max-width:640px">
   <div class="card">
     <div id="msg"></div>
-    <label class="field">Your Discord username
-      <input id="from" maxlength="60" autocomplete="off">
+    <label class="field">Your exact Discord name <small>So our team can reach you. We prefill this when you're logged in.</small>
+      <input id="from" maxlength="60" autocomplete="off" placeholder="your_discord_username">
     </label>
     <label class="field">Topic
       <select id="topic">
         <option>Billing</option><option>Reports not generating</option><option>Listing or content issue</option>
-        <option>Account or data request</option><option>Network plan</option><option>Something else</option>
+        <option>Account or data request</option><option>Plan enquiry</option><option>Something else</option>
       </select>
+    </label>
+    <label class="field">Subject <small>A short summary.</small>
+      <input id="subject" maxlength="100" autocomplete="off" placeholder="Brief summary of your issue">
     </label>
     <label class="field">Message
       <textarea id="body" rows="5" maxlength="1500"></textarea>
