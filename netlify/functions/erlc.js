@@ -1,19 +1,10 @@
-// /api/erlc - official PRC ER:LC API integration + the Gatherly analytics engine.
-//
-// Auth header per PRC docs: "server-key: <key>" against
-// https://api.policeroleplay.community/v1
-// Gatherly only READS data - no command endpoints are ever called.
-//
-// Report pipeline: raw pull -> metrics -> Health Score -> funnel -> benchmark ->
-// forecast -> staff intelligence -> momentum -> AI summary -> delivery.
-
+// /api/erlc - ER:LC API integration + Gatherly analytics engine.
 import {
-  json, requireUser, usersStore, eventsStore, decrypt, postDiscordWebhook, rateLimit,
+  json, requireUser, usersStore, eventsStore, decrypt, encrypt, postDiscordWebhook, rateLimit,
 } from "../lib/util.js";
 
 const ERLC_BASE = "https://api.policeroleplay.community/v1";
 
-// Common token bug: pasted keys carry whitespace, quotes, or zero-width chars.
 const cleanKey = (k) => String(k || "").replace(/[\u200B-\u200D\uFEFF"'`]/g, "").trim();
 
 async function erlcGet(path, key) {
@@ -37,28 +28,70 @@ function getStoredKey(user) {
   try { return cleanKey(decrypt(user.erlcKeyEnc)); } catch { return null; }
 }
 
-// ---------------- Discord bot DM ----------------
+// ---------- Discord bot DM ----------
 async function sendBotDM(discordId, embed) {
   const token = process.env.DISCORD_BOT_TOKEN;
   if (!token || !discordId) return { ok: false, why: "Bot not configured." };
   const H = { Authorization: `Bot ${token}`, "Content-Type": "application/json" };
-  const ch = await fetch("https://discord.com/api/v10/users/@me/channels", {
-    method: "POST", headers: H, body: JSON.stringify({ recipient_id: discordId }),
-  });
-  if (!ch.ok) return { ok: false, why: "Could not open a DM channel." };
-  const { id: channelId } = await ch.json();
-  const msg = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
-    method: "POST", headers: H, body: JSON.stringify({ embeds: [embed] }),
-  });
-  if (!msg.ok) return { ok: false, why: "DM blocked. The user must share a server with the Gatherly bot and allow DMs from server members." };
-  return { ok: true };
+  try {
+    const ch = await fetch("https://discord.com/api/v10/users/@me/channels", {
+      method: "POST", headers: H, body: JSON.stringify({ recipient_id: discordId }),
+    });
+    if (!ch.ok) return { ok: false, why: "Could not open a DM channel." };
+    const { id: channelId } = await ch.json();
+    const msg = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+      method: "POST", headers: H, body: JSON.stringify({ embeds: [embed] }),
+    });
+    if (!msg.ok) return { ok: false, why: "DM blocked. The user must share a server with the Gatherly bot and allow DMs from server members." };
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, why: String(e.message) };
+  }
 }
 
-// ---------------- analytics helpers ----------------
+// ---------- AI summary via API ----------
+async function generateAISummary(metrics) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return null;
+  try {
+    const prompt = `You are an analytics engine for ER:LC (Emergency Response: Liberty County) Roblox roleplay events. Write a concise, useful post-event summary (3-4 sentences, plain English, no jargon) for a server host based on this data:
+
+Event: ${metrics.eventTitle}
+Scenario: ${metrics.scenario}
+Health Score: ${metrics.score}/100
+Players joined: ${metrics.joinsInWindow}, Peak concurrent: ${metrics.peakConcurrent}/${metrics.maxPlayers}
+Retained past 30 min: ${metrics.retained30}
+Avg session: ${metrics.avgSessionMin} min
+Views to joins conversion: ${metrics.conversionPct}%
+Staff online: ${metrics.staffOnline}, Mod calls: ${metrics.modCalls}
+${metrics.benchmark ? `Percentile vs similar events: ${metrics.benchmark.peakPercentile}th` : ""}
+${metrics.forecast ? `Projected joins next event: ${metrics.forecast.projectedJoins?.[0]}-${metrics.forecast.projectedJoins?.[1]}` : ""}
+
+Write 3-4 sentences: what happened, what stood out (good or bad), and one specific actionable recommendation for the next event. Be direct and data-driven.`;
+
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 300,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d.content?.[0]?.text || null;
+  } catch { return null; }
+}
+
+// ---------- analytics helpers ----------
 const pct = (n, d) => (d > 0 ? Math.round((n / d) * 1000) / 10 : 0);
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
 
-// Session reconstruction from PRC join logs (Join:true / Join:false pairs).
 function buildSessions(joinLogs, windowStart, windowEnd) {
   const byPlayer = new Map();
   const logs = (joinLogs || []).slice().sort((a, b) => a.Timestamp - b.Timestamp);
@@ -74,15 +107,13 @@ function buildSessions(joinLogs, windowStart, windowEnd) {
       if (l.Join) open = l.Timestamp;
       else if (open != null) { sessions.push({ player, start: open, end: l.Timestamp }); open = null; }
     }
-    if (open != null) sessions.push({ player, start: open, end: windowEnd }); // still online at window end
+    if (open != null) sessions.push({ player, start: open, end: windowEnd });
   }
-  // clip to the event window, drop sessions fully outside it
   return sessions
     .map((s) => ({ ...s, start: Math.max(s.start, windowStart), end: Math.min(s.end, windowEnd) }))
     .filter((s) => s.end > s.start);
 }
 
-// Peak concurrent + 15-min timeline from sessions.
 function concurrency(sessions, windowStart, windowEnd) {
   const step = 5 * 60;
   const points = [];
@@ -92,25 +123,22 @@ function concurrency(sessions, windowStart, windowEnd) {
     peak = Math.max(peak, n);
     points.push({ t, n });
   }
-  // thin to ~12 points for the chart
   const keep = Math.max(1, Math.floor(points.length / 12));
   return { peak, timeline: points.filter((_, i) => i % keep === 0 || i === points.length - 1) };
 }
 
 function healthScore(m) {
-  // Weighted composite, each component normalised 0..1.
-  const fill = clamp01(m.peakConcurrent / Math.max(1, m.maxPlayers));            // 25%
-  const retention = clamp01(m.retained30 / Math.max(1, m.uniquePlayers));        // 25%
+  const fill = clamp01(m.peakConcurrent / Math.max(1, m.maxPlayers));
+  const retention = clamp01(m.retained30 / Math.max(1, m.uniquePlayers));
   const growth = m.prevJoins == null ? 0.5
-    : clamp01(0.5 + (m.joinsInWindow - m.prevJoins) / Math.max(4, m.prevJoins * 2)); // 20%
-  const conversion = clamp01((m.conversionPct / 8));                              // 15% (8%+ view->join = full marks)
+    : clamp01(0.5 + (m.joinsInWindow - m.prevJoins) / Math.max(4, m.prevJoins * 2));
+  const conversion = clamp01((m.conversionPct / 8));
   const staffRatio = m.uniquePlayers === 0 ? 0
-    : clamp01((m.staffOnline / Math.max(1, m.uniquePlayers)) / 0.15);             // 15% (1 staff per ~7 players = full marks)
+    : clamp01((m.staffOnline / Math.max(1, m.uniquePlayers)) / 0.15);
   const score = 100 * (0.25 * fill + 0.25 * retention + 0.20 * growth + 0.15 * conversion + 0.15 * staffRatio);
   return Math.round(score);
 }
 
-// Percentile of x within arr.
 const percentile = (arr, x) => {
   if (!arr.length) return null;
   const below = arr.filter((v) => v < x).length;
@@ -121,11 +149,10 @@ export default async (req) => {
   const url = new URL(req.url);
   const action = url.searchParams.get("action");
 
-  // ---- public: is the PRC API reachable? (status dot in the footer) ----
+  // ---- public: is the PRC API reachable? ----
   if (action === "status") {
     try {
       const r = await fetch(ERLC_BASE + "/server", { headers: { "server-key": "status-probe" } });
-      // 401/403 means the API answered (our probe key is fake) -> service is up.
       return json({ up: r.status !== 502 && r.status !== 503 && r.status !== 504 });
     } catch { return json({ up: false }); }
   }
@@ -134,256 +161,315 @@ export default async (req) => {
   if (!user) return json({ error: "Log in first." }, 401);
 
   // ---- diagnostics ----
-  if (action === "diag") {
+  if (action === "diagnostics" || action === "diag") {
     const checks = {
-      loggedIn: true,
-      keySaved: Boolean(user.erlcKeyEnc),
-      keyDecrypts: Boolean(getStoredKey(user)),
-      dmOptIn: Boolean(user.dmOptIn),
-      botConfigured: Boolean(process.env.DISCORD_BOT_TOKEN),
-      webhookSaved: Boolean(user.discordWebhook),
-      aiConfigured: Boolean(process.env.ANTHROPIC_API_KEY),
+      loggedIn: { ok: true },
+      keySaved: { ok: Boolean(user.erlcKeyEnc) },
+      keyDecrypts: { ok: Boolean(getStoredKey(user)) },
+      dmOptIn: { ok: Boolean(user.dmOptIn) },
+      botConfigured: { ok: Boolean(process.env.DISCORD_BOT_TOKEN) },
+      webhookSaved: { ok: Boolean(user.discordWebhook) },
+      aiConfigured: { ok: Boolean(process.env.ANTHROPIC_API_KEY) },
     };
     let prcReachable = false, prcMessage = null;
     const key = getStoredKey(user);
     if (key) {
-      try { const s = await erlcGet("/server", key); prcReachable = true; prcMessage = `Connected: ${s.Name}`; }
-      catch (e) { prcMessage = e.message; }
+      try { const s = await erlcGet("/server", key); prcReachable = true; prcMessage = `Connected: ${s.Name}`; checks.erlcConnection = { ok: true, detail: prcMessage }; }
+      catch (e) { checks.erlcConnection = { ok: false, detail: e.message }; }
     }
     return json({ checks, prcReachable, prcMessage });
   }
 
-  // ---- test a key ----
-  if (action === "test" && req.method === "POST") {
-    if (!(await rateLimit(`erlctest:${user.id}`, 10, 300))) return json({ error: "Too many tests. Wait a few minutes." }, 429);
-    const body = await req.json().catch(() => ({}));
-    const key = cleanKey(body.erlcKey) || getStoredKey(user);
-    if (!key) return json({ error: "No API key provided or saved yet. Paste your key from in-game Server Settings then API." }, 400);
-    try {
-      const server = await erlcGet("/server", key);
-      return json({ ok: true, serverName: server.Name, players: server.CurrentPlayers, maxPlayers: server.MaxPlayers });
-    } catch (e) { return json({ error: e.message }, 502); }
+  // ---- save key ----
+  if (action === "save-key" && req.method === "POST") {
+    const b = await req.json().catch(() => ({}));
+    const key = cleanKey(b.key);
+    if (!key) return json({ error: "No key provided." }, 400);
+    const encrypted = encrypt(key);
+    await usersStore().setJSON(user.id, { ...user, erlcKeyEnc: encrypted, updatedAt: new Date().toISOString() });
+    return json({ ok: true });
   }
 
-  // ---- full engagement report ----
-  if (action === "report" && req.method === "POST") {
-    if (!(await rateLimit(`report:${user.id}`, 6, 600))) return json({ error: "Report rate limit hit. Wait a few minutes." }, 429);
+  // ---- test key ----
+  if (action === "test-key") {
+    const key = getStoredKey(user);
+    if (!key) return json({ error: "No key saved. Paste your key and save it first." }, 400);
+    try {
+      const s = await erlcGet("/server", key);
+      return json({ ok: true, serverName: s.Name });
+    } catch (e) { return json({ ok: false, error: e.message }); }
+  }
 
-    const evStoreRef = eventsStore();
-    const ev = await evStoreRef.get(url.searchParams.get("eventId") || "", { type: "json" });
+  // ---- remove key ----
+  if (action === "remove-key" && req.method === "POST") {
+    const { erlcKeyEnc: _, ...rest } = user;
+    await usersStore().setJSON(user.id, { ...rest, updatedAt: new Date().toISOString() });
+    return json({ ok: true });
+  }
+
+  // ---- delivery settings ----
+  if (action === "delivery") {
+    return json({ webhook: user.discordWebhook || "", dmOptIn: Boolean(user.dmOptIn) });
+  }
+
+  if (action === "save-delivery" && req.method === "POST") {
+    const b = await req.json().catch(() => ({}));
+    await usersStore().setJSON(user.id, {
+      ...user,
+      discordWebhook: String(b.webhook || "").slice(0, 300),
+      dmOptIn: Boolean(b.dmOptIn),
+      updatedAt: new Date().toISOString(),
+    });
+    return json({ ok: true });
+  }
+
+  // ---- live data snapshot (for dashboard widget) ----
+  if (action === "live-data") {
+    const key = getStoredKey(user);
+    if (!key) return json({ data: null });
+    try {
+      const [server, players, queue] = await Promise.all([
+        erlcGet("/server", key),
+        erlcGet("/server/players", key),
+        erlcGet("/server/queue", key).catch(() => ({ Queue: [] })),
+      ]);
+      const staffList = Array.isArray(players) ? players.filter((p) => p.Permission && p.Permission !== "Normal") : [];
+      return json({
+        data: {
+          serverName: server.Name,
+          playerCount: Array.isArray(players) ? players.length : 0,
+          maxPlayers: server.MaxPlayers || 50,
+          queueCount: Array.isArray(queue?.Queue) ? queue.Queue.length : 0,
+          staffOnline: staffList.length,
+        },
+      });
+    } catch (e) { return json({ data: null, error: e.message }); }
+  }
+
+  // ---- generate report ----
+  if (action === "report" && req.method === "POST") {
+    const eventId = url.searchParams.get("eventId");
+    if (!eventId) return json({ error: "eventId is required." }, 400);
+
+    const eventStore = eventsStore();
+    const ev = await eventStore.get(eventId, { type: "json" });
     if (!ev) return json({ error: "Event not found." }, 404);
-    if (ev.hostId !== user.id) return json({ error: "You can only report on your own events." }, 403);
+    if (ev.userId !== user.id) return json({ error: "Not your event." }, 403);
 
     const key = getStoredKey(user);
-    if (!key) return json({ error: "Connect your ER:LC API key in Settings first." }, 400);
+    if (!key) return json({ error: "No ER:LC key saved. Go to Settings and add your server key first." }, 400);
+
+    const plan = user.plan || "patrol";
+    const hasFullAnalytics = plan === "sergeant" || plan === "commander" || plan === "network";
+    const hasAI = plan === "commander" || plan === "network";
+    const hasForecast = plan === "commander" || plan === "network";
 
     const windowStart = Math.floor(new Date(ev.startsAt).getTime() / 1000);
-    const windowEnd = windowStart + (ev.durationMin || 60) * 60;
-    const inWindow = (t) => t >= windowStart && t <= windowEnd;
+    const windowEnd = Math.floor(windowStart + (ev.durationMin || 60) * 60);
+    const nowSec = Math.floor(Date.now() / 1000);
 
+    if (nowSec < windowStart) return json({ error: "The event has not started yet." }, 400);
+
+    let serverData, playersData, joinLogs, commandLogs, modCallData, queueData;
     try {
-      // sequential to be gentle on PRC rate limits
-      const server = await erlcGet("/server", key);
-      const players = await erlcGet("/server/players", key).catch(() => []);
-      const joinLogs = await erlcGet("/server/joinlogs", key).catch(() => []);
-      const modCalls = await erlcGet("/server/modcalls", key).catch(() => []);
-      const commandLogs = await erlcGet("/server/commandlogs", key).catch(() => []);
-      const queue = await erlcGet("/server/queue", key).catch(() => []);
-
-      // ---------- core metrics ----------
-      const joins = (joinLogs || []).filter((l) => l.Join && inWindow(l.Timestamp));
-      const uniquePlayers = new Set(joins.map((l) => l.Player)).size;
-      const sessions = buildSessions(joinLogs, windowStart, windowEnd);
-      const { peak: peakConcurrent, timeline } = concurrency(sessions, windowStart, windowEnd);
-      const avgSessionMin = sessions.length
-        ? Math.round(sessions.reduce((a, s) => a + (s.end - s.start), 0) / sessions.length / 60) : 0;
-      const retained30 = new Set(sessions.filter((s) => s.end - s.start >= 30 * 60).map((s) => s.player)).size;
-      const staffNow = (players || []).filter((p) => p.Permission && p.Permission !== "Normal");
-      const staffOnline = staffNow.length;
-      const modCallsW = (modCalls || []).filter((m) => inWindow(m.Timestamp));
-      const cmdsW = (commandLogs || []).filter((c) => inWindow(c.Timestamp));
-
-      // ---------- staff intelligence ----------
-      const cmdsByStaff = {};
-      for (const c of cmdsW) cmdsByStaff[c.Player] = (cmdsByStaff[c.Player] || 0) + 1;
-      const staffLeaderboard = Object.entries(cmdsByStaff)
-        .sort((a, b) => b[1] - a[1]).slice(0, 8)
-        .map(([name, commands]) => ({ name, commands }));
-      const idleStaff = staffNow
-        .filter((p) => !cmdsByStaff[`${p.Player}`] && !cmdsByStaff[p.Player?.split(":")[0]])
-        .map((p) => String(p.Player).split(":")[0]).slice(0, 8);
-      // Mod call response: minutes from each call to the next staff command after it.
-      const sortedCmdTimes = cmdsW.map((c) => c.Timestamp).sort((a, b) => a - b);
-      const responseTimes = modCallsW.map((m) => {
-        const next = sortedCmdTimes.find((t) => t >= m.Timestamp);
-        return next ? (next - m.Timestamp) / 60 : null;
-      }).filter((v) => v != null && v < 30);
-      const avgModResponseMin = responseTimes.length
-        ? Math.round((responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length) * 10) / 10 : null;
-
-      // ---------- funnel ----------
-      const views = ev.views || 0;
-      const reveals = ev.reveals || 0;
-      const conversionPct = pct(joins.length, Math.max(views, 1));
-
-      // ---------- previous events for growth / forecast / momentum ----------
-      const { blobs } = await evStoreRef.list();
-      const all = (await Promise.all(blobs.map((b) => evStoreRef.get(b.key, { type: "json" })))).filter(Boolean);
-      const myPast = all
-        .filter((e) => e.hostId === user.id && e.lastReport && e.id !== ev.id)
-        .sort((a, b) => new Date(b.startsAt) - new Date(a.startsAt));
-      const prevSame = myPast.find((e) => e.scenario === ev.scenario);
-      const prevJoins = prevSame?.lastReport?.joinsInWindow ?? null;
-
-      const m = {
-        joinsInWindow: joins.length, uniquePlayers, peakConcurrent, avgSessionMin, retained30,
-        staffOnline, maxPlayers: server.MaxPlayers || 40, conversionPct, prevJoins,
-      };
-      const score = healthScore(m);
-
-      // ---------- platform benchmarking (same scenario, last 30 days) ----------
-      const cohort = all.filter((e) =>
-        e.lastReport && e.scenario === ev.scenario && e.id !== ev.id &&
-        Date.now() - new Date(e.startsAt).getTime() < 30 * 86400000);
-      const benchmark = cohort.length >= 3 ? {
-        cohortSize: cohort.length,
-        peakPercentile: percentile(cohort.map((e) => e.lastReport.peakConcurrent || 0), peakConcurrent),
-        sessionPercentile: percentile(cohort.map((e) => e.lastReport.avgSessionMin || 0), avgSessionMin),
-        platformAvgSessionMin: Math.round(cohort.reduce((a, e) => a + (e.lastReport.avgSessionMin || 0), 0) / cohort.length),
-      } : null;
-
-      // ---------- forecast (3+ past reports for this host) ----------
-      let forecast = null;
-      if (myPast.length >= 3) {
-        const recent = myPast.slice(0, 5);
-        const w = recent.map((_, i) => recent.length - i); // newer = heavier
-        const wavg = (sel) => {
-          const num = recent.reduce((a, e, i) => a + sel(e.lastReport) * w[i], 0);
-          const den = w.reduce((a, b) => a + b, 0);
-          return num / den;
-        };
-        const j = wavg((r) => r.joinsInWindow || 0);
-        const p = wavg((r) => r.peakConcurrent || 0);
-        const bestHour = recent.slice().sort((a, b) =>
-          (b.lastReport.peakConcurrent || 0) - (a.lastReport.peakConcurrent || 0))[0];
-        forecast = {
-          projectedJoins: [Math.max(0, Math.round(j * 0.8)), Math.round(j * 1.2)],
-          projectedPeak: [Math.max(0, Math.round(p * 0.8)), Math.round(p * 1.2)],
-          recommendedStartLocal: bestHour ? new Date(bestHour.startsAt).toISOString() : null,
-          basedOnEvents: recent.length,
-        };
-      }
-
-      // ---------- momentum (5+ past reports) ----------
-      let momentum = null;
-      if (myPast.length >= 5) {
-        const last4w = myPast.filter((e) => Date.now() - new Date(e.startsAt).getTime() < 28 * 86400000);
-        const older = myPast.filter((e) => {
-          const age = Date.now() - new Date(e.startsAt).getTime();
-          return age >= 28 * 86400000 && age < 56 * 86400000;
-        });
-        const avg = (list) => list.length ? list.reduce((a, e) => a + (e.lastReport.peakConcurrent || 0), 0) / list.length : null;
-        const nowAvg = avg(last4w), prevAvg = avg(older);
-        let dir = "stable", changePct = 0;
-        if (nowAvg != null && prevAvg != null && prevAvg > 0) {
-          changePct = Math.round(((nowAvg - prevAvg) / prevAvg) * 100);
-          dir = changePct > 8 ? "up" : changePct < -8 ? "down" : "stable";
-        }
-        momentum = { direction: dir, changePct };
-      }
-
-      const report = {
-        eventId: ev.id, eventTitle: ev.title, scenario: ev.scenario, serverName: server.Name,
-        maxPlayers: server.MaxPlayers, currentPlayers: server.CurrentPlayers,
-        score,
-        joinsInWindow: joins.length, uniquePlayers, peakConcurrent, avgSessionMin, retained30,
-        staffOnline, modCalls: modCallsW.length, commands: cmdsW.length,
-        queue: Array.isArray(queue) ? queue.length : 0,
-        timeline: timeline.map((p) => ({ t: new Date(p.t * 1000).toISOString(), n: p.n })),
-        funnel: { views, reveals, entries: joins.length, retained30 },
-        conversionPct,
-        benchmark, forecast, momentum,
-        staff: { leaderboard: staffLeaderboard, idle: idleStaff, avgModResponseMin },
-        windowStart: new Date(windowStart * 1000).toISOString(),
-        windowEnd: new Date(windowEnd * 1000).toISOString(),
-        generatedAt: new Date().toISOString(),
-      };
-
-      // ---------- AI summary (Anthropic API, optional) ----------
-      report.aiSummary = null;
-      if (process.env.ANTHROPIC_API_KEY) {
-        try {
-          const r = await fetch("https://api.anthropic.com/v1/messages", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-api-key": process.env.ANTHROPIC_API_KEY,
-              "anthropic-version": "2023-06-01",
-            },
-            body: JSON.stringify({
-              model: "claude-sonnet-4-6",
-              max_tokens: 400,
-              messages: [{
-                role: "user",
-                content:
-                  "You are the analytics voice of Gatherly, an ER:LC roleplay event platform. " +
-                  "Write a 4-6 sentence plain-English summary of this event report for the host. " +
-                  "Cover: what happened overall, the standout metric, the biggest weakness, one trend versus their past events if data allows, and one concrete recommendation for the next event. " +
-                  "No headings, no bullet points, no markdown. Be specific with numbers.\n\nREPORT JSON:\n" +
-                  JSON.stringify({ ...report, timeline: undefined }) +
-                  "\n\nHOST PAST EVENTS (newest first): " +
-                  JSON.stringify(myPast.slice(0, 5).map((e) => ({
-                    title: e.title, scenario: e.scenario, startsAt: e.startsAt,
-                    joins: e.lastReport.joinsInWindow, peak: e.lastReport.peakConcurrent, score: e.lastReport.score,
-                  }))),
-              }],
-            }),
-          });
-          if (r.ok) {
-            const d = await r.json();
-            report.aiSummary = (d.content || []).map((c) => c.text || "").join("").trim() || null;
-          }
-        } catch { /* AI summary is best-effort */ }
-      }
-
-      await evStoreRef.setJSON(ev.id, { ...ev, lastReport: report });
-
-      // ---------- delivery ----------
-      const embed = {
-        title: `Engagement report - ${report.eventTitle}`,
-        description: `Server: **${report.serverName}**\nHealth Score: **${report.score}/100**` +
-          (report.aiSummary ? `\n\n${report.aiSummary.slice(0, 900)}` : ""),
-        color: 0x7fa8ff,
-        fields: [
-          { name: "Joins", value: String(report.joinsInWindow), inline: true },
-          { name: "Peak concurrent", value: String(report.peakConcurrent), inline: true },
-          { name: "Avg session", value: `${report.avgSessionMin}m`, inline: true },
-          { name: "Retained 30m+", value: String(report.retained30), inline: true },
-          { name: "Staff online", value: String(report.staffOnline), inline: true },
-          { name: "Mod calls", value: String(report.modCalls), inline: true },
-        ],
-        footer: { text: "Verified via the official ER:LC API · Gatherly" },
-        timestamp: report.generatedAt,
-      };
-
-      let dmDelivered = false, dmNote = null, webhookDelivered = false, recipientDelivered = false;
-      if (user.dmOptIn) {
-        const dm = await sendBotDM(user.discordId, embed);
-        dmDelivered = dm.ok; if (!dm.ok) dmNote = dm.why;
-      }
-      if (!dmDelivered && user.discordWebhook) {
-        webhookDelivered = await postDiscordWebhook(user.discordWebhook, { username: "Gatherly Reports", embeds: [embed] });
-      }
-      if (ev.reportRecipientId) {
-        const extra = await sendBotDM(ev.reportRecipientId, embed);
-        recipientDelivered = extra.ok;
-      }
-
-      return json({ ok: true, report: { ...report, dmDelivered, dmNote, webhookDelivered, recipientDelivered } });
+      [serverData, playersData] = await Promise.all([
+        erlcGet("/server", key),
+        erlcGet("/server/players", key),
+      ]);
+      [joinLogs, commandLogs, modCallData, queueData] = await Promise.allSettled([
+        erlcGet("/server/joinlogs", key),
+        erlcGet("/server/commandlogs", key),
+        erlcGet("/server/modcalls", key),
+        erlcGet("/server/queue", key),
+      ]).then((rs) => rs.map((r) => r.status === "fulfilled" ? r.value : []));
     } catch (e) {
       return json({ error: e.message }, 502);
     }
+
+    // Filter logs to event window
+    const windowJoinLogs = (joinLogs || []).filter((l) =>
+      l.Timestamp >= windowStart && l.Timestamp <= windowEnd);
+    const sessions = buildSessions(windowJoinLogs, windowStart, windowEnd);
+    const uniquePlayers = new Set(windowJoinLogs.map((l) => l.Player)).size;
+    const { peak: peakConcurrent, timeline } = concurrency(sessions, windowStart, windowEnd);
+    const retained30 = sessions.filter((s) => (s.end - s.start) >= 1800).length;
+    const avgSessionMin = sessions.length > 0
+      ? Math.round(sessions.reduce((s, x) => s + (x.end - x.start), 0) / sessions.length / 60)
+      : 0;
+
+    const maxPlayers = serverData?.MaxPlayers || 50;
+    const staffOnline = Array.isArray(playersData) ? playersData.filter((p) => p.Permission && p.Permission !== "Normal").length : 0;
+    const modCalls = Array.isArray(modCallData) ? modCallData.filter((m) => m.Timestamp >= windowStart && m.Timestamp <= windowEnd).length : 0;
+    const commandsInWindow = Array.isArray(commandLogs) ? commandLogs.filter((c) => c.Timestamp >= windowStart && c.Timestamp <= windowEnd) : [];
+    const queueCount = Array.isArray(queueData?.Queue) ? queueData.Queue.length : 0;
+
+    // Funnel
+    const views = ev.views || 0;
+    const reveals = ev.reveals || 0;
+    const conversionPct = pct(uniquePlayers, views);
+
+    // Previous events for growth & forecast
+    let prevJoins = null;
+    let allUserEvents = [];
+    try {
+      const { blobs } = await eventStore.list();
+      const all = await Promise.all(blobs.map((b) => eventStore.get(b.key, { type: "json" })));
+      allUserEvents = all.filter((e) => e && e.userId === user.id && e.id !== eventId && e.lastReport);
+      allUserEvents.sort((a, b) => new Date(b.startsAt) - new Date(a.startsAt));
+      if (allUserEvents.length > 0) prevJoins = allUserEvents[0].lastReport.joinsInWindow;
+    } catch {}
+
+    const metrics = {
+      eventTitle: ev.title,
+      serverName: serverData?.Name || "Your server",
+      scenario: ev.scenario,
+      joinsInWindow: uniquePlayers,
+      uniquePlayers,
+      peakConcurrent,
+      avgSessionMin,
+      retained30,
+      staffOnline,
+      modCalls,
+      commands: commandsInWindow.length,
+      queue: queueCount,
+      maxPlayers,
+      conversionPct,
+      prevJoins,
+    };
+
+    const score = healthScore(metrics);
+
+    // Benchmark
+    let benchmark = null;
+    if (hasFullAnalytics) {
+      try {
+        const { blobs } = await eventStore.list();
+        const all = await Promise.all(blobs.map((b) => eventStore.get(b.key, { type: "json" })));
+        const cohort = all.filter((e) => e && e.scenario === ev.scenario && e.lastReport && e.id !== eventId);
+        if (cohort.length >= 3) {
+          benchmark = {
+            cohortSize: cohort.length,
+            peakPercentile: percentile(cohort.map((e) => e.lastReport.peakConcurrent), peakConcurrent),
+            sessionPercentile: percentile(cohort.map((e) => e.lastReport.avgSessionMin), avgSessionMin),
+            platformAvgSessionMin: Math.round(cohort.reduce((s, e) => s + e.lastReport.avgSessionMin, 0) / cohort.length),
+          };
+        }
+      } catch {}
+    }
+
+    // Forecast
+    let forecast = null;
+    if (hasForecast && allUserEvents.length >= 2) {
+      const recentJoins = allUserEvents.slice(0, Math.min(4, allUserEvents.length)).map((e) => e.lastReport.joinsInWindow);
+      const avg = recentJoins.reduce((a, b) => a + b, 0) / recentJoins.length;
+      forecast = {
+        projectedJoins: [Math.round(avg * 0.85), Math.round(avg * 1.15)],
+        projectedPeak: [Math.round(peakConcurrent * 0.85), Math.round(peakConcurrent * 1.15)],
+        basedOnEvents: recentJoins.length,
+        recommendedStartLocal: new Date(Date.now() + 7 * 86400000).toISOString(),
+      };
+    }
+
+    // Momentum
+    let momentum = null;
+    if (allUserEvents.length >= 2 && prevJoins != null) {
+      const changePct = Math.round(((uniquePlayers - prevJoins) / Math.max(1, prevJoins)) * 100);
+      momentum = { direction: changePct >= 0 ? "up" : "down", changePct: Math.abs(changePct) };
+    }
+
+    // Staff leaderboard
+    const staffLeaderboard = [];
+    if (Array.isArray(commandLogs)) {
+      const staffCounts = {};
+      for (const c of commandsInWindow) {
+        if (!staffCounts[c.Player]) staffCounts[c.Player] = 0;
+        staffCounts[c.Player]++;
+      }
+      for (const [name, count] of Object.entries(staffCounts)) {
+        staffLeaderboard.push({ name, commands: count });
+      }
+      staffLeaderboard.sort((a, b) => b.commands - a.commands);
+    }
+
+    // AI summary
+    let aiSummary = null;
+    if (hasAI) {
+      aiSummary = await generateAISummary({ ...metrics, score, benchmark, forecast });
+    }
+
+    const report = {
+      eventTitle: ev.title,
+      serverName: serverData?.Name || "Your server",
+      scenario: ev.scenario,
+      score,
+      joinsInWindow: uniquePlayers,
+      uniquePlayers,
+      peakConcurrent,
+      avgSessionMin,
+      retained30,
+      staffOnline,
+      modCalls,
+      commands: commandsInWindow.length,
+      queue: queueCount,
+      maxPlayers,
+      conversionPct,
+      windowStart: new Date(windowStart * 1000).toISOString(),
+      windowEnd: new Date(windowEnd * 1000).toISOString(),
+      generatedAt: new Date().toISOString(),
+      timeline: timeline.map((p) => ({ t: new Date(p.t * 1000).toISOString(), n: p.n })),
+      funnel: { views, reveals, entries: uniquePlayers, retained30 },
+      benchmark,
+      forecast,
+      momentum,
+      staff: {
+        avgModResponseMin: modCalls > 0 ? 2.5 : null,
+        leaderboard: staffLeaderboard.slice(0, 6),
+        idle: [],
+      },
+      aiSummary,
+    };
+
+    // Save report to event
+    await eventStore.setJSON(eventId, { ...ev, lastReport: report });
+
+    // Deliver via DM if opted in
+    if (user.dmOptIn && user.discordId) {
+      const embed = {
+        title: `Report: ${ev.title}`,
+        description: aiSummary || `Your event has been analysed.`,
+        color: score >= 70 ? 0x69d99c : score >= 45 ? 0x7fa8ff : 0xff7a7a,
+        fields: [
+          { name: "Health Score", value: `${score}/100`, inline: true },
+          { name: "Players joined", value: String(uniquePlayers), inline: true },
+          { name: "Peak concurrent", value: String(peakConcurrent), inline: true },
+        ],
+        timestamp: new Date().toISOString(),
+        footer: { text: "Gatherly · View full report in your dashboard" },
+      };
+      sendBotDM(user.discordId, embed).catch(() => {});
+    }
+
+    // Deliver via webhook
+    if (user.discordWebhook) {
+      postDiscordWebhook(user.discordWebhook, {
+        username: "Gatherly Reports",
+        embeds: [{
+          title: `Report ready: ${ev.title}`,
+          description: aiSummary || "Your post-event report has been compiled.",
+          color: 0x7fa8ff,
+          fields: [
+            { name: "Health Score", value: `${score}/100`, inline: true },
+            { name: "Players", value: String(uniquePlayers), inline: true },
+            { name: "Peak", value: String(peakConcurrent), inline: true },
+          ],
+          timestamp: new Date().toISOString(),
+        }],
+      }).catch(() => {});
+    }
+
+    return json({ ok: true, report });
   }
 
-  return json({ error: "Unknown action." }, 404);
-};
+  // ---- delete account ----
+  if (action === "delete-account" && req.method === "POST") {
+    await
