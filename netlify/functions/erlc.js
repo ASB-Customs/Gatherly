@@ -4,7 +4,7 @@ import {
   auditError, normalizePlan, planLevel,
 } from "../lib/util.js";
 
-const ERLC_BASE = "https://api.policeroleplay.community/v1";
+const ERLC_BASE = "https://api.erlc.gg/v1";
 const cleanKey = (k) => String(k || "").replace(/[\u200B-\u200D\uFEFF"'`]/g, "").trim();
 
 async function fetchT(url, opts = {}, ms = 8000) {
@@ -49,12 +49,7 @@ async function generateAISummary(metrics) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
   try {
-    const prompt = `You are an analytics engine for ER:LC Roblox roleplay events. Write a concise post-event summary (3-4 sentences, plain English) for a server host.
-Event: ${metrics.eventTitle} | Scenario: ${metrics.scenario}
-Health Score: ${metrics.score}/100 | Joined: ${metrics.joinsInWindow} | Peak: ${metrics.peakConcurrent}/${metrics.maxPlayers}
-Retained 30min: ${metrics.retained30} | Avg session: ${metrics.avgSessionMin}min | Conversion: ${metrics.conversionPct}%
-Staff online: ${metrics.staffOnline} | Mod calls: ${metrics.modCalls}
-Say what happened, what stood out, and one specific recommendation for next time. Be direct and data-driven.`;
+    const prompt = `You are an analytics engine for ER:LC Roblox roleplay events. Write a concise post-event summary (3-4 sentences, plain English) for a server host.\nEvent: ${metrics.eventTitle} | Scenario: ${metrics.scenario}\nHealth Score: ${metrics.score}/100 | Joined: ${metrics.joinsInWindow} | Peak: ${metrics.peakConcurrent}/${metrics.maxPlayers}\nRetained 30min: ${metrics.retained30} | Avg session: ${metrics.avgSessionMin}min | Conversion: ${metrics.conversionPct}%\nStaff online: ${metrics.staffOnline} | Mod calls: ${metrics.modCalls}\nSay what happened, what stood out, and one specific recommendation for next time. Be direct and data-driven.`;
     const r = await fetchT("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
@@ -314,7 +309,7 @@ async function handler(req) {
         title: `Report: ${ev.title}`, description: aiSummary || "Your event has been analysed.",
         color: score >= 70 ? 0x69d99c : score >= 45 ? 0x7fa8ff : 0xff7a7a,
         fields: [{ name: "Health Score", value: `${score}/100`, inline: true }, { name: "Players joined", value: String(uniquePlayers), inline: true }, { name: "Peak concurrent", value: String(peakConcurrent), inline: true }],
-        timestamp: new Date().toISOString(), footer: { text: "Gatherly · View full report in your dashboard" },
+        timestamp: new Date().toISOString(), footer: { text: "Gatherly - View full report in your dashboard" },
       });
     }
     if (user.discordWebhook) {
