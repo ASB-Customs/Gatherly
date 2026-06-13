@@ -18,6 +18,7 @@ export const miscStore = () => getStore("misc");
 export const imagesStore = () => getStore("images");
 export const ticketsStore = () => getStore("tickets");
 export const auditStore = () => getStore("audit");
+export const codesStore = () => getStore("adminCodes"); // NEW: executive-issued role codes
 
 // ---------- secrets ----------
 function secret() {
@@ -61,7 +62,11 @@ export async function requireUser(req) {
   return user;
 }
 
+// ---------- role helpers ----------
+// Staff = admin OR executive (moderation surface).
 export const isStaff = (u) => Boolean(u && (u.role === "admin" || u.role === "executive"));
+// Exec = executive only (ultimate power: roles, codes, site-critical settings).
+export const isExec = (u) => Boolean(u && u.role === "executive");
 
 // ---------- encryption for stored ER:LC keys (AES-256-GCM) ----------
 function encKey() {
@@ -116,6 +121,14 @@ export async function audit(actor, action, detail = {}) {
 // ---------- input helpers ----------
 export const clampStr = (v, max) => String(v ?? "").trim().slice(0, max);
 export const id = () => crypto.randomBytes(9).toString("base64url");
+
+// Short, human-typeable, unambiguous code (no 0/O/1/I/L). e.g. "GATH-7K4P-9XQ2"
+export function adminCode() {
+  const alphabet = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+  const block = () => Array.from({ length: 4 }, () =>
+    alphabet[crypto.randomInt(alphabet.length)]).join("");
+  return `GATH-${block()}-${block()}`;
+}
 
 export async function postDiscordWebhook(webhookUrl, payload) {
   try {
