@@ -1,14 +1,12 @@
-// /js/pages/admin.js — the staff control room.
-// Tabs: Support (live chat) · Events · Users · Site · Executive · Audit.
-// Exec-only tabs/sections are hidden for plain admins.
+// /js/pages/admin.js
 import { boot, api, esc, fmtLocal } from "/js/app.js";
 
 boot("/admin");
 
 const $ = (id) => document.getElementById(id);
 const gate = $("gate"), panel = $("panel"), msg = $("msg");
-let me = null;            // { id, username, role }
-let chatTimer = null;     // live-chat polling
+let me = null;
+let chatTimer = null;
 let openChatId = null;
 
 const flash = (el, text, ok = false) => {
@@ -16,7 +14,6 @@ const flash = (el, text, ok = false) => {
   if (ok) setTimeout(() => { if (el.firstChild) el.innerHTML = ""; }, 3500);
 };
 
-// ---------- boot: figure out if this person is staff ----------
 init();
 async function init() {
   try {
@@ -27,11 +24,9 @@ async function init() {
   }
 }
 
-// ---------- the access gate (claim exec / redeem code / request) ----------
 function showGate() {
   panel.hidden = true;
   gate.hidden = false;
-  // Rebuild the gate so it offers all three paths cleanly.
   gate.innerHTML = `
     <h3>Staff access</h3>
     <p style="margin:6px 0 16px">Enter an access code from an executive, claim the executive role with the setup code, or request admin access for review.</p>
@@ -72,466 +67,505 @@ function showGate() {
   };
 }
 
-// ---------- the panel ----------
 function showPanel() {
   gate.hidden = true;
   panel.hidden = false;
   const exec = me.role === "executive";
   $("role").textContent = `Signed in as ${me.username} · ${me.role}. Every action is audit-logged.`;
 
-  // Build a tab bar + sections, overriding the static markup so we fully control it.
   panel.innerHTML = `
     <div class="tabs" id="tabs">
       <button data-tab="support" class="tab active">Support <span class="tab-badge" id="supBadge" hidden>0</span></button>
-      <button data-tab="events" class="tab">Events</button>
       <button data-tab="users" class="tab">Users</button>
+      <button data-tab="events" class="tab">Events</button>
       <button data-tab="site" class="tab">Site</button>
       ${exec ? `<button data-tab="exec" class="tab">Executive</button>` : ""}
       <button data-tab="audit" class="tab">Audit</button>
     </div>
     <div id="msg"></div>
 
+    <!-- SUPPORT TAB -->
     <div class="tabpane" data-pane="support">
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-          <h3>Support chats</h3>
+          <h3>Support tickets</h3>
           <div class="seg" id="supFilter">
-            <button data-status="open" class="seg-btn active">Unresolved</button>
-            <button data-status="closed" class="seg-btn">Resolved</button>
+            <button data-status="open" class="seg-btn active">Open</button>
+            <button data-status="closed" class="seg-btn">Closed</button>
           </div>
         </div>
-        <div class="support-grid" style="margin-top:14px">
-          <div id="chatList"><p class="note">Loading…</p></div>
-          <div id="chatView"><p class="note">Select a chat to open it.</p></div>
+        <div id="ticketList" style="margin-top:14px"><p>Loading…</p></div>
+      </div>
+      <div class="card" id="chatPanel" hidden>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h3 id="chatTitle">Chat</h3>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost btn-sm" id="closeTicket">Resolve</button>
+            <button class="btn btn-ghost btn-sm" id="assignTicket">Assign to me</button>
+            <button class="btn btn-ghost btn-sm" id="backTickets">← Back</button>
+          </div>
+        </div>
+        <div id="chatMessages" style="margin-top:14px;display:grid;gap:8px;max-height:400px;overflow-y:auto"></div>
+        <div style="margin-top:12px;display:flex;gap:8px">
+          <input id="chatInput" placeholder="Type a reply…" style="flex:1">
+          <button class="btn btn-primary btn-sm" id="sendChat">Send</button>
         </div>
       </div>
     </div>
 
-    <div class="tabpane" data-pane="events" hidden>
-      <div class="card"><h3>All events</h3><div id="evTable" style="margin-top:14px;overflow-x:auto"><p>Loading…</p></div></div>
-      <div class="card" id="evEdit" hidden style="margin-top:18px">
-        <h3>Edit event</h3>
-        <div class="grid grid-2" style="margin-top:12px">
-          <label class="field">Title<input id="eTitle" maxlength="80"></label>
-          <label class="field">Scenario<input id="eScenario" maxlength="40"></label>
-          <label class="field">Start time<input id="eStartsAt" type="datetime-local"></label>
-          <label class="field">Length (minutes, 15-90)<input id="eDuration" type="number" min="15" max="90"></label>
-        </div>
-        <label class="field">Description<textarea id="eDesc" rows="2" maxlength="400"></textarea></label>
-        <label class="field" style="display:flex;align-items:center;gap:10px;font-weight:500">
-          <input type="checkbox" id="eBoosted" style="width:auto;margin:0"> Boosted placement
-        </label>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <button class="btn btn-primary btn-sm" id="saveEvent">Save changes</button>
-          <button class="btn btn-ghost btn-sm" id="cancelEdit">Cancel</button>
-        </div>
-      </div>
-    </div>
-
+    <!-- USERS TAB -->
     <div class="tabpane" data-pane="users" hidden>
-      <div class="card"><h3>Users</h3><div id="userTable" style="margin-top:14px;overflow-x:auto"><p>Loading…</p></div></div>
-    </div>
-
-    <div class="tabpane" data-pane="site" hidden>
       <div class="card">
-        <h3>Homepage content</h3>
-        <p style="font-size:.88rem;margin:6px 0 14px">Edits the hero live, no deploy needed.</p>
-        <div class="grid grid-2">
-          <label class="field">Hero headline<input id="heroHeadline" maxlength="200"></label>
-          <label class="field">Hero subline<input id="heroSub" maxlength="200"></label>
+        <h3>User search</h3>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <input id="userSearchInput" placeholder="Search by username, Discord ID…" style="flex:1">
+          <button class="btn btn-primary btn-sm" id="userSearchBtn">Search</button>
         </div>
-        <label class="field">Site-wide announcement <small>Shown as a banner. Leave blank to hide.</small><input id="announcement" maxlength="200"></label>
-        <button class="btn btn-primary btn-sm" id="saveContent">Save content</button>
+        <div id="userSearchResults" style="margin-top:14px"></div>
+      </div>
+      <div class="card" id="userEditPanel" hidden>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h3>Edit user: <span id="editUsername"></span></h3>
+          <button class="btn btn-ghost btn-sm" id="backUsers">← Back</button>
+        </div>
+        <div id="userEditContent" style="margin-top:14px"></div>
+      </div>
+      <div class="card" id="allUsersCard">
+        <h3>All users</h3>
+        <div id="userList" style="margin-top:14px"><p>Loading…</p></div>
       </div>
     </div>
 
+    <!-- EVENTS TAB -->
+    <div class="tabpane" data-pane="events" hidden>
+      <div class="card">
+        <h3>All events</h3>
+        <div id="eventList" style="margin-top:14px"><p>Loading…</p></div>
+      </div>
+    </div>
+
+    <!-- SITE TAB -->
+    <div class="tabpane" data-pane="site" hidden>
+      ${exec ? `
+      <div class="card">
+        <h3>Site content</h3>
+        <label class="field">Announcement bar <small>Leave blank to hide</small>
+          <input id="announcement" placeholder="Site-wide announcement text">
+        </label>
+        <label class="field">Hero headline
+          <input id="heroHeadline" placeholder="Fill every session. Then prove it worked.">
+        </label>
+        <label class="field">Hero subtitle
+          <input id="heroSub" placeholder="ER:LC event advertising with post-event analytics.">
+        </label>
+        <button class="btn btn-primary btn-sm" id="saveContent" style="margin-top:8px">Save content</button>
+        <div id="contentMsg" style="margin-top:10px"></div>
+      </div>` : `<div class="card"><p class="note">Site content editing is executive-only.</p></div>`}
+    </div>
+
+    <!-- EXECUTIVE TAB -->
     ${exec ? `
     <div class="tabpane" data-pane="exec" hidden>
       <div class="card">
-        <h3>Access codes <span class="badge badge-boost">Executive</span></h3>
-        <p style="font-size:.88rem;margin:6px 0 14px">Generate a code for someone to redeem under Settings → Staff access. Reusable until you revoke it.</p>
-        <div class="grid grid-2">
-          <label class="field">Label <small>e.g. "Weekend mod team"</small><input id="codeLabel" maxlength="60"></label>
-          <label class="field">Grants role<select id="codeRole"><option value="admin">admin</option><option value="executive">executive</option></select></label>
+        <h3>Access codes</h3>
+        <p style="font-size:.85rem;margin:6px 0 14px">Generate codes for new staff. Codes can be revoked at any time.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" id="genAdmin">Generate admin code</button>
+          <button class="btn btn-ghost btn-sm" id="genExec">Generate executive code</button>
         </div>
-        <button class="btn btn-primary btn-sm" id="genCode">Generate code</button>
-        <div id="codeList" style="margin-top:18px"><p class="note">Loading…</p></div>
+        <div id="newCode" style="margin-top:12px;font-size:.9rem;color:var(--signal);font-weight:600"></div>
+        <div id="codeList" style="margin-top:14px"><p>Loading…</p></div>
       </div>
-
-      <div class="card" style="margin-top:18px">
-        <h3>Set a role directly</h3>
-        <p style="font-size:.88rem;margin:6px 0 14px">Promote or demote by Discord username (they must have signed in at least once).</p>
-        <div class="grid grid-2">
-          <label class="field">Username<input id="roleUser" autocomplete="off"></label>
-          <label class="field">Role<select id="roleSel"><option value="admin">admin</option><option value="executive">executive</option><option value="none">none (remove)</option></select></label>
-        </div>
-        <button class="btn btn-primary btn-sm" id="setRole">Apply role</button>
-      </div>
-
-      <div class="card" style="margin-top:18px">
+      <div class="card">
         <h3>Admin access requests</h3>
-        <div id="adminReqs" style="margin-top:10px"><p class="note">Loading…</p></div>
+        <div id="reqList" style="margin-top:14px"><p>Loading…</p></div>
       </div>
     </div>` : ""}
 
+    <!-- AUDIT TAB -->
     <div class="tabpane" data-pane="audit" hidden>
       <div class="card">
         <h3>Audit log</h3>
-        <p style="font-size:.88rem;margin:6px 0 14px">Last 100 staff and host actions, newest first.</p>
-        <button class="btn btn-ghost btn-sm" id="loadAudit">Refresh audit log</button>
-        <div id="auditOut" style="margin-top:14px;overflow-x:auto"></div>
+        <div id="auditList" style="margin-top:14px"><p>Loading…</p></div>
       </div>
     </div>`;
 
-  wireTabs();
-  wireSupport();
-  wireEvents();
-  wireUsers();
-  wireSite();
-  if (exec) wireExec();
-  wireAudit();
-
-  // initial loads
-  loadSupportList("open");
-  pollCounts();
-  setInterval(pollCounts, 8000);
-}
-
-// ---------- tabs ----------
-function wireTabs() {
-  const tabs = $("tabs");
-  tabs.querySelectorAll(".tab").forEach((btn) => {
-    btn.onclick = () => {
-      tabs.querySelectorAll(".tab").forEach((b) => b.classList.toggle("active", b === btn));
-      const which = btn.dataset.tab;
-      panel.querySelectorAll(".tabpane").forEach((p) => { p.hidden = p.dataset.pane !== which; });
-      if (which === "events") loadEvents();
-      if (which === "users") loadUsers();
-      if (which === "site") loadContent();
-      if (which === "exec") { loadCodes(); loadRequests(); }
-      if (which === "audit") loadAudit();
-    };
+  // Tab switching
+  document.getElementById("tabs").addEventListener("click", (e) => {
+    const btn = e.target.closest(".tab");
+    if (!btn) return;
+    document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
+    btn.classList.add("active");
+    document.querySelectorAll(".tabpane").forEach((p) => p.hidden = true);
+    const pane = document.querySelector(`[data-pane="${btn.dataset.tab}"]`);
+    if (pane) pane.hidden = false;
+    if (btn.dataset.tab === "support") loadTickets();
+    if (btn.dataset.tab === "users") loadUsers();
+    if (btn.dataset.tab === "events") loadEvents();
+    if (btn.dataset.tab === "exec") loadExec();
+    if (btn.dataset.tab === "audit") loadAudit();
   });
-}
 
-async function pollCounts() {
-  try {
-    const d = await api("/api/tickets?action=counts");
-    const badge = $("supBadge");
-    if (badge) { badge.hidden = !d.open; badge.textContent = d.open; }
-  } catch { /* ignore */ }
-}
+  // Initial load
+  loadTickets();
+  loadUsers();
+  pollSupBadge();
 
-// ========================= SUPPORT (live chat) =========================
-function wireSupport() {
-  const seg = $("supFilter");
-  seg.querySelectorAll(".seg-btn").forEach((b) => {
-    b.onclick = () => {
-      seg.querySelectorAll(".seg-btn").forEach((x) => x.classList.toggle("active", x === b));
-      loadSupportList(b.dataset.status);
-    };
-  });
-}
-
-async function loadSupportList(status) {
-  const list = $("chatList");
-  try {
-    const d = await api(`/api/tickets?action=list&status=${status}`);
-    if (!d.tickets.length) { list.innerHTML = `<p class="note">No ${status === "open" ? "unresolved" : "resolved"} chats.</p>`; return; }
-    list.innerHTML = d.tickets.map((t) => `
-      <button class="chat-item ${t.id === openChatId ? "active" : ""}" data-id="${t.id}">
-        <div class="chat-item-top"><b>${esc(t.subject)}</b>${t.assignedToName ? `<span class="badge">${esc(t.assignedToName)}</span>` : `<span class="badge badge-live">new</span>`}</div>
-        <div class="chat-item-sub">@${esc(t.username)} · ${esc(t.topic)} · ${fmtLocal(t.updatedAt)}</div>
-      </button>`).join("");
-    list.querySelectorAll(".chat-item").forEach((el) => {
-      el.onclick = () => openChat(el.dataset.id);
-    });
-  } catch (e) { list.innerHTML = `<p class="note">${esc(e.message)}</p>`; }
-}
-
-async function openChat(id) {
-  openChatId = id;
-  if (chatTimer) clearInterval(chatTimer);
-  await renderChat();
-  chatTimer = setInterval(renderChat, 3000); // live polling
-  document.querySelectorAll(".chat-item").forEach((el) =>
-    el.classList.toggle("active", el.dataset.id === id));
-}
-
-async function renderChat() {
-  const view = $("chatView");
-  if (!openChatId) return;
-  let t;
-  try { ({ ticket: t } = await api(`/api/tickets?action=get&id=${openChatId}`)); }
-  catch (e) { view.innerHTML = `<p class="note">${esc(e.message)}</p>`; return; }
-
-  const closed = t.status === "closed";
-  view.innerHTML = `
-    <div class="chat-head">
-      <div>
-        <b>${esc(t.subject)}</b>
-        <div class="chat-item-sub">@${esc(t.username)} · ${esc(t.topic)} · ${closed ? "resolved" : "open"}${t.assignedToName ? ` · handling: ${esc(t.assignedToName)}` : ""}</div>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        ${!t.assignedTo && !closed ? `<button class="btn btn-ghost btn-sm" id="claimChat">Claim</button>` : ""}
-        ${closed ? `<button class="btn btn-ghost btn-sm" id="reopenChat">Reopen</button>`
-                 : `<button class="btn btn-ghost btn-sm" id="closeChat">Mark resolved</button>`}
-      </div>
-    </div>
-    <div class="chat-log" id="chatLog">
-      ${t.messages.map((m) => `
-        <div class="chat-msg ${m.from === "staff" ? "from-staff" : "from-user"}">
-          <div class="chat-msg-meta">${esc(m.by)} · ${new Date(m.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
-          <div class="chat-bubble">${esc(m.text)}</div>
-        </div>`).join("")}
-    </div>
-    ${closed ? `<p class="note" style="margin-top:10px">This chat is resolved. Reopen it to reply.</p>` : `
-    <div class="chat-compose">
-      <textarea id="chatInput" rows="2" maxlength="2000" placeholder="Reply to @${esc(t.username)}…"></textarea>
-      <button class="btn btn-primary btn-sm" id="sendChat">Send</button>
-    </div>`}`;
-
-  const log = $("chatLog"); if (log) log.scrollTop = log.scrollHeight;
-
-  $("claimChat") && ($("claimChat").onclick = async () => {
-    await api(`/api/tickets?action=assign&id=${openChatId}`, { method: "POST" });
-    renderChat();
-  });
-  $("closeChat") && ($("closeChat").onclick = async () => {
-    await api(`/api/tickets?action=close&id=${openChatId}`, { method: "POST" });
-    renderChat(); loadSupportList("open"); pollCounts();
-  });
-  $("reopenChat") && ($("reopenChat").onclick = async () => {
-    await api(`/api/tickets?action=reopen&id=${openChatId}`, { method: "POST" });
-    renderChat(); pollCounts();
-  });
-  const send = $("sendChat"), input = $("chatInput");
-  if (send && input) {
-    const fire = async () => {
-      const text = input.value.trim(); if (!text) return;
-      input.value = "";
-      try { await api(`/api/tickets?action=reply&id=${openChatId}`, { method: "POST", body: { text } }); }
-      catch (e) { flash($("msg"), e.message); }
-      renderChat();
-    };
-    send.onclick = fire;
-    input.onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); fire(); } };
+  // ---- SUPPORT ----
+  function loadTickets(status = "open") {
+    const listEl = $("ticketList");
+    if (!listEl) return;
+    listEl.innerHTML = "<p>Loading…</p>";
+    api(`/api/tickets?action=list&status=${status}`).then(({ tickets }) => {
+      listEl.innerHTML = tickets.length ? tickets.map((t) => `
+        <div class="row" style="cursor:pointer;padding:10px 0;border-bottom:1px solid var(--line)" data-ticket="${esc(t.id)}">
+          <span><b>${esc(t.subject)}</b> <span style="color:var(--muted);font-size:.8rem">from @${esc(t.username)}</span></span>
+          <span style="color:var(--muted);font-size:.8rem">${t.topic} · ${new Date(t.updatedAt).toLocaleDateString()}</span>
+        </div>`).join("") : "<p>No tickets.</p>";
+      listEl.querySelectorAll("[data-ticket]").forEach((row) => {
+        row.onclick = () => openChat(row.dataset.ticket, tickets.find((t) => t.id === row.dataset.ticket));
+      });
+    }).catch(() => { listEl.innerHTML = "<p>Failed to load.</p>"; });
   }
-}
 
-// ========================= EVENTS =========================
-function wireEvents() {
-  $("cancelEdit").onclick = () => { $("evEdit").hidden = true; };
-  $("saveEvent").onclick = saveEvent;
-}
-let editingId = null;
-async function loadEvents() {
-  const wrap = $("evTable");
-  try {
-    const d = await api("/api/admin?action=events");
-    if (!d.events.length) { wrap.innerHTML = `<p class="note">No events.</p>`; return; }
-    wrap.innerHTML = `<table class="tbl"><thead><tr>
-      <th>Title</th><th>Host</th><th>Scenario</th><th>Starts</th><th>Status</th><th>Views</th><th></th>
-    </tr></thead><tbody>${d.events.map((e) => `
-      <tr>
-        <td>${esc(e.title)}${e.boosted ? ` <span class="badge badge-boost">boost</span>` : ""}</td>
-        <td>@${esc(e.hostUsername)}</td>
-        <td>${esc(e.scenario || "")}</td>
-        <td>${fmtLocal(e.startsAt)}</td>
-        <td>${e.ended ? `<span class="badge">ended</span>` : `<span class="badge badge-live">live/upcoming</span>`}</td>
-        <td>${e.views}</td>
-        <td style="white-space:nowrap;display:flex;gap:6px">
-          <button class="btn btn-ghost btn-sm" data-edit="${e.id}">Edit</button>
-          ${e.ended ? "" : `<button class="btn btn-ghost btn-sm" data-end="${e.id}">End</button>`}
-          <button class="btn btn-danger btn-sm" data-del="${e.id}">Delete</button>
-        </td>
-      </tr>`).join("")}</tbody></table>`;
-    wrap.querySelectorAll("[data-edit]").forEach((b) => b.onclick = () => startEdit(d.events.find((e) => e.id === b.dataset.edit)));
-    wrap.querySelectorAll("[data-end]").forEach((b) => b.onclick = () => endEvent(b.dataset.end));
-    wrap.querySelectorAll("[data-del]").forEach((b) => b.onclick = () => deleteEvent(b.dataset.del));
-  } catch (e) { wrap.innerHTML = `<p class="note">${esc(e.message)}</p>`; }
-}
-function startEdit(e) {
-  editingId = e.id;
-  $("evEdit").hidden = false;
-  $("eTitle").value = e.title || "";
-  $("eScenario").value = e.scenario || "";
-  $("eStartsAt").value = toLocalInput(e.startsAt);
-  $("eDuration").value = e.durationMin || 60;
-  $("eDesc").value = e.description || "";
-  $("eBoosted").checked = Boolean(e.boosted);
-  $("evEdit").scrollIntoView({ behavior: "smooth", block: "center" });
-}
-async function saveEvent() {
-  if (!editingId) return;
-  const body = {
-    id: editingId,
-    title: $("eTitle").value, scenario: $("eScenario").value,
-    description: $("eDesc").value, durationMin: Number($("eDuration").value),
-    boosted: $("eBoosted").checked,
+  $("supFilter").addEventListener("click", (e) => {
+    const btn = e.target.closest(".seg-btn");
+    if (!btn) return;
+    $("supFilter").querySelectorAll(".seg-btn").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    loadTickets(btn.dataset.status);
+  });
+
+  function openChat(ticketId, ticket) {
+    openChatId = ticketId;
+    $("ticketList").closest(".card").hidden = true;
+    $("chatPanel").hidden = false;
+    $("chatTitle").textContent = ticket?.subject || "Ticket";
+    loadChatMessages(ticketId);
+    clearInterval(chatTimer);
+    chatTimer = setInterval(() => loadChatMessages(ticketId), 4000);
+  }
+
+  function loadChatMessages(ticketId) {
+    api(`/api/tickets?action=get&id=${ticketId}`).then(({ ticket: t }) => {
+      const msgs = $("chatMessages");
+      if (!msgs) return;
+      msgs.innerHTML = t.messages.map((m) => `
+        <div style="padding:8px 12px;border-radius:8px;background:${m.from === "staff" ? "rgba(127,168,255,0.1)" : "rgba(255,255,255,0.04)"}">
+          <span style="font-size:.78rem;color:var(--muted)">${m.from === "staff" ? "Staff" : "User"} · ${esc(m.by)} · ${new Date(m.at).toLocaleTimeString()}</span>
+          <div style="margin-top:4px">${esc(m.text)}</div>
+        </div>`).join("");
+      msgs.scrollTop = msgs.scrollHeight;
+    }).catch(() => {});
+  }
+
+  $("backTickets").onclick = () => {
+    clearInterval(chatTimer);
+    $("ticketList").closest(".card").hidden = false;
+    $("chatPanel").hidden = true;
   };
-  const local = $("eStartsAt").value;
-  if (local) body.startsAt = new Date(local).toISOString();
-  try {
-    await api("/api/admin?action=event-update", { method: "POST", body });
-    flash($("msg"), "Event saved.", true);
-    $("evEdit").hidden = true; loadEvents();
-  } catch (e) { flash($("msg"), e.message); }
-}
-async function endEvent(id) {
-  if (!confirm("End this event now? It will leave the discovery feed immediately.")) return;
-  try { await api("/api/admin?action=event-end", { method: "POST", body: { id } }); flash($("msg"), "Event ended.", true); loadEvents(); }
-  catch (e) { flash($("msg"), e.message); }
-}
-async function deleteEvent(id) {
-  if (!confirm("Delete this event permanently? This cannot be undone.")) return;
-  try { await api("/api/admin?action=event-delete", { method: "POST", body: { id } }); flash($("msg"), "Event deleted.", true); loadEvents(); }
-  catch (e) { flash($("msg"), e.message); }
-}
 
-// ========================= USERS =========================
-function wireUsers() {}
-async function loadUsers() {
-  const wrap = $("userTable");
-  try {
-    const d = await api("/api/admin?action=users");
-    wrap.innerHTML = `<table class="tbl"><thead><tr>
-      <th>Username</th><th>Plan</th><th>Role</th><th>Key</th><th>Status</th><th></th>
-    </tr></thead><tbody>${d.users.map((u) => `
-      <tr>
-        <td>@${esc(u.username)}</td>
+  $("sendChat").onclick = async () => {
+    const input = $("chatInput");
+    const text = input.value.trim();
+    if (!text || !openChatId) return;
+    try {
+      await api(`/api/tickets?action=reply`, { method: "POST", body: { id: openChatId, message: text } });
+      input.value = "";
+      loadChatMessages(openChatId);
+    } catch (e) { flash($("msg"), e.message); }
+  };
+
+  $("closeTicket").onclick = async () => {
+    if (!openChatId) return;
+    try {
+      await api("/api/tickets?action=close", { method: "POST", body: { id: openChatId } });
+      flash($("msg"), "Ticket resolved.", true);
+      $("backTickets").click();
+      loadTickets();
+    } catch (e) { flash($("msg"), e.message); }
+  };
+
+  $("assignTicket").onclick = async () => {
+    if (!openChatId) return;
+    try {
+      await api("/api/tickets?action=assign", { method: "POST", body: { id: openChatId } });
+      flash($("msg"), "Assigned to you.", true);
+    } catch (e) { flash($("msg"), e.message); }
+  };
+
+  function pollSupBadge() {
+    api("/api/tickets?action=counts").then(({ open }) => {
+      const badge = $("supBadge");
+      if (!badge) return;
+      if (open > 0) { badge.textContent = open; badge.hidden = false; }
+      else badge.hidden = true;
+    }).catch(() => {});
+    setTimeout(pollSupBadge, 15000);
+  }
+
+  // ---- USERS ----
+  function loadUsers() {
+    const listEl = $("userList");
+    if (!listEl) return;
+    api("/api/admin?action=users").then(({ users }) => {
+      renderUserTable(listEl, users);
+    }).catch(() => { listEl.innerHTML = "<p>Failed to load.</p>"; });
+  }
+
+  function renderUserTable(el, users) {
+    el.innerHTML = users.length ? `
+      <table class="tbl"><thead><tr>
+        <th>Username</th><th>Plan</th><th>Credits</th><th>Role</th><th>Status</th><th></th>
+      </tr></thead><tbody>
+      ${users.map((u) => `<tr>
+        <td><b>${esc(u.username)}</b></td>
         <td>${esc(u.plan)}</td>
-        <td>${u.role ? `<span class="badge badge-boost">${esc(u.role)}</span>` : "—"}</td>
-        <td>${u.hasErlcKey ? "yes" : "—"}</td>
-        <td>${u.suspended ? `<span class="badge badge-bad">suspended</span>` : "active"}</td>
-        <td style="white-space:nowrap;display:flex;gap:6px;flex-wrap:wrap">
-          <button class="btn btn-ghost btn-sm" data-susp="${u.id}">${u.suspended ? "Unsuspend" : "Suspend"}</button>
-          ${u.hasErlcKey ? `<button class="btn btn-ghost btn-sm" data-revoke="${u.id}">Revoke key</button>` : ""}
-        </td>
-      </tr>`).join("")}</tbody></table>`;
-    wrap.querySelectorAll("[data-susp]").forEach((b) => b.onclick = async () => {
-      const u = d.users.find((x) => x.id === b.dataset.susp);
-      try { await api("/api/admin?action=user-update", { method: "POST", body: { id: u.id, suspended: !u.suspended } }); loadUsers(); }
-      catch (e) { flash($("msg"), e.message); }
-    });
-    wrap.querySelectorAll("[data-revoke]").forEach((b) => b.onclick = async () => {
-      if (!confirm("Revoke this user's stored ER:LC key?")) return;
-      try { await api("/api/admin?action=user-update", { method: "POST", body: { id: b.dataset.revoke, revokeErlcKey: true } }); loadUsers(); }
-      catch (e) { flash($("msg"), e.message); }
-    });
-  } catch (e) { wrap.innerHTML = `<p class="note">${esc(e.message)}</p>`; }
-}
+        <td>${u.credits}</td>
+        <td>${u.role ? `<span class="badge">${esc(u.role)}</span>` : "-"}</td>
+        <td>${u.suspended ? `<span class="badge badge-bad">Suspended</span>` : `<span class="badge badge-good">Active</span>`}</td>
+        <td><button class="btn btn-ghost btn-sm" data-edit="${esc(u.id)}" data-name="${esc(u.username)}">Edit</button></td>
+      </tr>`).join("")}
+      </tbody></table>` : "<p>No users found.</p>";
 
-// ========================= SITE CONTENT =========================
-function wireSite() { $("saveContent").onclick = saveContent; }
-async function loadContent() {
-  try {
-    const { content } = await api("/api/admin?action=content");
-    $("heroHeadline").value = content.heroHeadline || "";
-    $("heroSub").value = content.heroSub || "";
-    $("announcement").value = content.announcement || "";
-  } catch { /* defaults are fine */ }
-}
-async function saveContent() {
-  const body = {
-    heroHeadline: $("heroHeadline").value,
-    heroSub: $("heroSub").value,
-    announcement: $("announcement").value,
-  };
-  try { await api("/api/admin?action=content-update", { method: "POST", body }); flash($("msg"), "Homepage content saved.", true); }
-  catch (e) { flash($("msg"), e.message); }
-}
+    el.querySelectorAll("[data-edit]").forEach((btn) => {
+      btn.onclick = () => openUserEdit(btn.dataset.edit, btn.dataset.name);
+    });
+  }
 
-// ========================= EXECUTIVE =========================
-function wireExec() {
-  $("genCode").onclick = async () => {
+  $("userSearchBtn").onclick = async () => {
+    const q = $("userSearchInput").value.trim();
+    if (!q) return loadUsers();
     try {
-      await api("/api/admin?action=code-create", { method: "POST", body: { label: $("codeLabel").value, role: $("codeRole").value } });
-      $("codeLabel").value = "";
-      flash($("msg"), "Code generated.", true);
-      loadCodes();
+      const { users } = await api(`/api/admin?action=users-search&q=${encodeURIComponent(q)}`);
+      renderUserTable($("userSearchResults"), users);
+      $("allUsersCard").hidden = true;
     } catch (e) { flash($("msg"), e.message); }
   };
-  $("setRole").onclick = async () => {
+  $("userSearchInput").addEventListener("keydown", (e) => { if (e.key === "Enter") $("userSearchBtn").click(); });
+
+  async function openUserEdit(userId, username) {
+    $("allUsersCard").hidden = true;
+    $("userEditPanel").hidden = false;
+    $("editUsername").textContent = username;
+
+    const content = $("userEditContent");
+    content.innerHTML = "<p>Loading…</p>";
     try {
-      await api("/api/admin?action=set-role", { method: "POST", body: { username: $("roleUser").value, role: $("roleSel").value } });
-      flash($("msg"), "Role applied.", true);
-      $("roleUser").value = "";
-    } catch (e) { flash($("msg"), e.message); }
-  };
-}
-async function loadCodes() {
-  const wrap = $("codeList");
-  try {
-    const d = await api("/api/admin?action=codes");
-    if (!d.codes.length) { wrap.innerHTML = `<p class="note">No codes yet.</p>`; return; }
-    wrap.innerHTML = `<table class="tbl"><thead><tr>
-      <th>Code</th><th>Label</th><th>Grants</th><th>Uses</th><th>Status</th><th></th>
-    </tr></thead><tbody>${d.codes.map((c) => `
-      <tr>
-        <td><code class="code-chip">${esc(c.code)}</code></td>
-        <td>${esc(c.label)}</td>
-        <td><span class="badge badge-boost">${esc(c.role)}</span></td>
-        <td title="${esc(c.redeemers.join(", "))}">${c.uses}</td>
-        <td>${c.revoked ? `<span class="badge badge-bad">revoked</span>` : `<span class="badge badge-good">active</span>`}</td>
-        <td>${c.revoked ? "" : `<button class="btn btn-ghost btn-sm" data-revoke-code="${esc(c.code)}">Revoke</button>`}</td>
-      </tr>`).join("")}</tbody></table>`;
-    wrap.querySelectorAll("[data-revoke-code]").forEach((b) => b.onclick = async () => {
-      if (!confirm("Revoke this code? Existing holders keep their role, but the code stops working for new redemptions.")) return;
-      try { await api("/api/admin?action=code-revoke", { method: "POST", body: { code: b.dataset.revokeCode } }); loadCodes(); }
-      catch (e) { flash($("msg"), e.message); }
-    });
-    // tap-to-copy
-    wrap.querySelectorAll(".code-chip").forEach((el) => el.onclick = () => {
-      navigator.clipboard?.writeText(el.textContent).then(() => flash($("msg"), "Code copied.", true));
-    });
-  } catch (e) { wrap.innerHTML = `<p class="note">${esc(e.message)}</p>`; }
-}
-async function loadRequests() {
-  const wrap = $("adminReqs");
-  try {
-    const d = await api("/api/admin?action=admin-requests");
-    if (!d.requests.length) { wrap.innerHTML = `<p class="note">No pending requests.</p>`; return; }
-    wrap.innerHTML = d.requests.map((r) => `
-      <div class="req-row">
-        <div><b>@${esc(r.username)}</b><div class="chat-item-sub">${esc(r.note || "No note")} · ${fmtLocal(r.at)}</div></div>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-primary btn-sm" data-approve="${esc(r.userId)}">Approve</button>
-          <button class="btn btn-ghost btn-sm" data-deny="${esc(r.userId)}">Deny</button>
+      const { user: u } = await api(`/api/admin?action=user-get&id=${encodeURIComponent(userId)}`);
+      content.innerHTML = `
+        <div class="grid grid-2" style="gap:14px;margin-bottom:16px">
+          <div class="stat" style="padding:14px"><b>${u.credits}</b><span>Credits</span></div>
+          <div class="stat" style="padding:14px"><b>${esc(u.plan)}</b><span>Current plan</span></div>
         </div>
-      </div>`).join("");
-    wrap.querySelectorAll("[data-approve]").forEach((b) => b.onclick = async () => {
-      try { await api("/api/admin?action=approve-request", { method: "POST", body: { userId: b.dataset.approve } }); flash($("msg"), "Approved as admin.", true); loadRequests(); }
-      catch (e) { flash($("msg"), e.message); }
-    });
-    wrap.querySelectorAll("[data-deny]").forEach((b) => b.onclick = async () => {
-      try { await api("/api/admin?action=deny-request", { method: "POST", body: { userId: b.dataset.deny } }); loadRequests(); }
-      catch (e) { flash($("msg"), e.message); }
-    });
-  } catch (e) { wrap.innerHTML = `<p class="note">${esc(e.message)}</p>`; }
-}
 
-// ========================= AUDIT =========================
-function wireAudit() { $("loadAudit").onclick = loadAudit; }
-async function loadAudit() {
-  const wrap = $("auditOut");
-  wrap.innerHTML = `<p class="note">Loading…</p>`;
-  try {
-    const d = await api("/api/admin?action=audit");
-    if (!d.entries.length) { wrap.innerHTML = `<p class="note">No entries.</p>`; return; }
-    wrap.innerHTML = `<table class="tbl"><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Detail</th></tr></thead>
-      <tbody>${d.entries.map((e) => `
-        <tr>
-          <td style="white-space:nowrap">${fmtLocal(e.at)}</td>
-          <td>${e.actor ? "@" + esc(e.actor.username) : "—"}</td>
-          <td><code class="code-chip">${esc(e.action)}</code></td>
-          <td style="font-size:.8rem">${esc(JSON.stringify(e.detail))}</td>
-        </tr>`).join("")}</tbody></table>`;
-  } catch (e) { wrap.innerHTML = `<p class="note">${esc(e.message)}</p>`; }
-}
+        <div class="card" style="margin-bottom:12px">
+          <h4 style="margin-bottom:10px">Credits</h4>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+            <label class="field" style="margin:0;flex:1">Amount
+              <input id="creditAmt" type="number" min="0" placeholder="e.g. 5">
+            </label>
+            <button class="btn btn-primary btn-sm" id="addCredits">Add</button>
+            <button class="btn btn-ghost btn-sm" id="removeCredits">Remove</button>
+            <button class="btn btn-ghost btn-sm" id="setCredits">Set exactly</button>
+          </div>
+          <div id="creditMsg" style="margin-top:8px"></div>
+        </div>
 
-// ---------- helpers ----------
-function toLocalInput(iso) {
-  const d = new Date(iso); const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        <div class="card" style="margin-bottom:12px">
+          <h4 style="margin-bottom:10px">Plan / Tier</h4>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <select id="planSelect" style="flex:1;padding:9px 12px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text)">
+              <option value="patrol" ${u.plan === "patrol" ? "selected" : ""}>Patrol (Free)</option>
+              <option value="sergeant" ${u.plan === "sergeant" ? "selected" : ""}>Sergeant</option>
+              <option value="commander" ${u.plan === "commander" ? "selected" : ""}>Commander</option>
+              <option value="network" ${u.plan === "network" ? "selected" : ""}>Network</option>
+            </select>
+            <button class="btn btn-primary btn-sm" id="setPlanBtn">Set plan</button>
+          </div>
+          <div id="planMsg" style="margin-top:8px"></div>
+        </div>
+
+        ${exec ? `
+        <div class="card" style="margin-bottom:12px">
+          <h4 style="margin-bottom:10px">Role (executive only)</h4>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <select id="roleSelect" style="flex:1;padding:9px 12px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text)">
+              <option value="" ${!u.role ? "selected" : ""}>No role (regular user)</option>
+              <option value="admin" ${u.role === "admin" ? "selected" : ""}>Admin</option>
+              <option value="executive" ${u.role === "executive" ? "selected" : ""}>Executive</option>
+            </select>
+            <button class="btn btn-primary btn-sm" id="setRoleBtn">Set role</button>
+          </div>
+          <div id="roleMsg" style="margin-top:8px"></div>
+        </div>` : ""}
+
+        <div class="card">
+          <h4 style="margin-bottom:10px">Account actions</h4>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" id="suspendBtn">${u.suspended ? "Unsuspend" : "Suspend"}</button>
+          </div>
+          <div id="actionMsg" style="margin-top:8px"></div>
+        </div>`;
+
+      $("addCredits").onclick = async () => {
+        const amt = $("creditAmt").value;
+        try { const d = await api("/api/admin?action=credits-add", { method: "POST", body: { userId, amount: amt } }); flash($("creditMsg"), `Credits added. New total: ${d.credits}`, true); } catch (e) { flash($("creditMsg"), e.message); }
+      };
+      $("removeCredits").onclick = async () => {
+        const amt = $("creditAmt").value;
+        try { const d = await api("/api/admin?action=credits-remove", { method: "POST", body: { userId, amount: amt } }); flash($("creditMsg"), `Credits removed. New total: ${d.credits}`, true); } catch (e) { flash($("creditMsg"), e.message); }
+      };
+      $("setCredits").onclick = async () => {
+        const amt = $("creditAmt").value;
+        try { const d = await api("/api/admin?action=credits-set", { method: "POST", body: { userId, amount: amt } }); flash($("creditMsg"), `Credits set to ${d.credits}`, true); } catch (e) { flash($("creditMsg"), e.message); }
+      };
+      $("setPlanBtn").onclick = async () => {
+        const plan = $("planSelect").value;
+        try { await api("/api/admin?action=set-plan", { method: "POST", body: { userId, plan } }); flash($("planMsg"), `Plan updated to ${plan}. Weekly credits granted.`, true); } catch (e) { flash($("planMsg"), e.message); }
+      };
+      if (exec) {
+        $("setRoleBtn").onclick = async () => {
+          const role = $("roleSelect").value || null;
+          try { await api("/api/admin?action=set-role", { method: "POST", body: { userId, role } }); flash($("roleMsg"), "Role updated.", true); } catch (e) { flash($("roleMsg"), e.message); }
+        };
+      }
+      $("suspendBtn").onclick = async () => {
+        const suspended = !u.suspended;
+        try { await api("/api/admin?action=suspend", { method: "POST", body: { userId, suspended } }); flash($("actionMsg"), suspended ? "User suspended." : "User unsuspended.", true); } catch (e) { flash($("actionMsg"), e.message); }
+      };
+
+    } catch (e) { content.innerHTML = `<p>${esc(e.message)}</p>`; }
+  }
+
+  $("backUsers").onclick = () => {
+    $("userEditPanel").hidden = true;
+    $("allUsersCard").hidden = false;
+  };
+
+  // ---- EVENTS ----
+  function loadEvents() {
+    const listEl = $("eventList");
+    if (!listEl) return;
+    api("/api/admin?action=events").then(({ events }) => {
+      listEl.innerHTML = events.length ? `
+        <table class="tbl"><thead><tr>
+          <th>Event</th><th>Host</th><th>Starts</th><th>Status</th><th>Boosted</th><th></th>
+        </tr></thead><tbody>
+        ${events.map((e) => {
+          const live = Date.now() >= new Date(e.startsAt).getTime() && Date.now() <= new Date(e.startsAt).getTime() + (e.durationMin || 60) * 60000;
+          const ended = Date.now() > new Date(e.startsAt).getTime() + (e.durationMin || 60) * 60000;
+          return `<tr>
+            <td><b>${esc(e.title)}</b><br><span style="font-size:.8rem;color:var(--muted)">${esc(e.scenario)}</span></td>
+            <td>${esc(e.hostUsername)}</td>
+            <td>${fmtLocal(e.startsAt)}</td>
+            <td>${live ? `<span class="badge badge-live">Live</span>` : ended ? `<span class="badge">Ended</span>` : `<span class="badge badge-boost">Upcoming</span>`}</td>
+            <td>${e.boosted ? `<span class="badge badge-boost">Boosted</span>` : "-"}</td>
+            <td style="white-space:nowrap">
+              <button class="btn btn-ghost btn-sm" data-boost="${esc(e.id)}">${e.boosted ? "Unboost" : "Boost"}</button>
+              ${!ended ? `<button class="btn btn-ghost btn-sm" data-end="${esc(e.id)}">End now</button>` : ""}
+              <button class="btn btn-danger btn-sm" data-delete="${esc(e.id)}">Delete</button>
+            </td>
+          </tr>`;
+        }).join("")}
+        </tbody></table>` : "<p>No events.</p>";
+
+      listEl.querySelectorAll("[data-boost]").forEach((btn) => {
+        btn.onclick = async () => {
+          try { const d = await api("/api/admin?action=boost", { method: "POST", body: { id: btn.dataset.boost } }); flash($("msg"), `Event ${d.boosted ? "boosted" : "unboosted"}.`, true); loadEvents(); } catch (e) { flash($("msg"), e.message); }
+        };
+      });
+      listEl.querySelectorAll("[data-end]").forEach((btn) => {
+        btn.onclick = async () => {
+          if (!confirm("End this event now?")) return;
+          try { await api("/api/admin?action=end-event", { method: "POST", body: { id: btn.dataset.end } }); flash($("msg"), "Event ended.", true); loadEvents(); } catch (e) { flash($("msg"), e.message); }
+        };
+      });
+      listEl.querySelectorAll("[data-delete]").forEach((btn) => {
+        btn.onclick = async () => {
+          if (!confirm("Delete this event permanently?")) return;
+          try { await api("/api/admin?action=delete-event", { method: "POST", body: { id: btn.dataset.delete } }); flash($("msg"), "Deleted.", true); loadEvents(); } catch (e) { flash($("msg"), e.message); }
+        };
+      });
+    }).catch(() => { $("eventList").innerHTML = "<p>Failed to load.</p>"; });
+  }
+
+  // ---- SITE ----
+  if (exec) {
+    fetch("/api/admin?action=content").then((r) => r.json()).then(({ content: c }) => {
+      if (!c) return;
+      if ($("announcement") && c.announcement) $("announcement").value = c.announcement;
+      if ($("heroHeadline") && c.heroHeadline) $("heroHeadline").value = c.heroHeadline;
+      if ($("heroSub") && c.heroSub) $("heroSub").value = c.heroSub;
+    }).catch(() => {});
+
+    const saveContent = $("saveContent");
+    if (saveContent) {
+      saveContent.onclick = async () => {
+        try {
+          await api("/api/admin?action=set-content", { method: "POST", body: {
+            announcement: $("announcement").value,
+            heroHeadline: $("heroHeadline").value,
+            heroSub: $("heroSub").value,
+          }});
+          flash($("contentMsg"), "Content saved.", true);
+        } catch (e) { flash($("contentMsg"), e.message); }
+      };
+    }
+  }
+
+  // ---- EXEC ----
+  function loadExec() {
+    if (!exec) return;
+    const codeList = $("codeList");
+    const reqList = $("reqList");
+    if (!codeList) return;
+
+    api("/api/admin?action=codes").then(({ codes }) => {
+      codeList.innerHTML = codes.length ? codes.map((c) => `
+        <div class="row" style="padding:8px 0;border-bottom:1px solid var(--line)">
+          <code style="color:var(--signal)">${esc(c.code)}</code>
+          <span style="color:var(--muted);font-size:.8rem">${c.role} · ${c.redemptions?.length || 0} uses · ${c.revoked ? "revoked" : "active"}</span>
+          ${!c.revoked ? `<button class="btn btn-danger btn-sm" data-revoke="${esc(c.code)}">Revoke</button>` : ""}
+        </div>`).join("") : "<p>No codes yet.</p>";
+      codeList.querySelectorAll("[data-revoke]").forEach((btn) => {
+        btn.onclick = async () => {
+          try { await api("/api/admin?action=revoke-code", { method: "POST", body: { code: btn.dataset.revoke } }); flash($("msg"), "Code revoked.", true); loadExec(); } catch (e) { flash($("msg"), e.message); }
+        };
+      });
+    }).catch(() => {});
+
+    api("/api/admin?action=admin-requests").then(({ requests }) => {
+      if (!reqList) return;
+      reqList.innerHTML = requests.length ? requests.map((r) => `
+        <div class="row" style="padding:8px 0;border-bottom:1px solid var(--line)">
+          <b>${esc(r.username)}</b>
+          <span style="color:var(--muted);font-size:.8rem">${new Date(r.at).toLocaleDateString()}</span>
+          <span style="color:var(--muted);font-size:.8rem">${esc(r.note || "No note")}</span>
+        </div>`).join("") : "<p>No pending requests.</p>";
+    }).catch(() => {});
+
+    $("genAdmin").onclick = async () => {
+      try { const d = await api("/api/admin?action=gen-code", { method: "POST", body: { role: "admin" } }); $("newCode").textContent = `Admin code: ${d.code}`; loadExec(); } catch (e) { flash($("msg"), e.message); }
+    };
+    $("genExec").onclick = async () => {
+      try { const d = await api("/api/admin?action=gen-code", { method: "POST", body: { role: "executive" } }); $("newCode").textContent = `Executive code: ${d.code}`; loadExec(); } catch (e) { flash($("msg"), e.message); }
+    };
+  }
+
+  // ---- AUDIT ----
+  function loadAudit() {
+    const el = $("auditList");
+    if (!el) return;
+    api("/api/admin?action=audit").then(({ entries }) => {
+      el.innerHTML = entries.length ? `
+        <table class="tbl"><thead><tr><th>Time</th><th>Actor</th><th>Action</th></tr></thead><tbody>
+        ${entries.map((e) => `<tr>
+          <td style="font-size:.8rem">${new Date(e.at).toLocaleString()}</td>
+          <td>${esc(e.actor?.username || "system")}</td>
+          <td><code style="font-size:.8rem">${esc(e.action)}</code></td>
+        </tr>`).join("")}
+        </tbody></table>` : "<p>No audit entries yet.</p>";
+    }).catch(() => { el.innerHTML = "<p>Failed to load.</p>"; });
+  }
 }
