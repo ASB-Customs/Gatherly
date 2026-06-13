@@ -29,31 +29,39 @@
     <a class="btn btn-primary btn-sm" href="/api/auth?action=start" style="margin-top:12px">Continue with Discord</a>
   </div>
 
-  <div id="msg"></div>
+  <div id="body">
+    <div id="msg"></div>
 
-  <div class="card" id="eventsCard">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap">
-      <h3>Your events</h3>
-      <a class="btn btn-primary btn-sm" href="/advertise">List a new event</a>
+    <div class="card" id="upgradeBanner" hidden style="background:linear-gradient(135deg,rgba(127,168,255,0.08),rgba(62,108,224,0.06)) !important;border:1px solid rgba(127,168,255,0.25) !important;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:18px"></div>
+
+    <div class="card" id="creditsCard" style="margin-bottom:18px"></div>
+
+    <div class="card" id="liveCard" style="margin-bottom:18px">
+      <h3>Live server snapshot</h3>
+      <p style="font-size:.85rem;margin:6px 0 16px">Real-time numbers pulled from your connected ER:LC server.</p>
+      <div id="liveSnapshot"><p>Loading&hellip;</p></div>
     </div>
-    <div id="myEvents" style="margin-top:16px"><p>Loading…</p></div>
-  </div>
 
-  <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
-      <div>
-        <h3>Best time to host</h3>
-        <p style="font-size:.85rem;margin:6px 0 0">Platform-wide average joins by day and hour (UTC), from every reported event on Gatherly. Brighter means busier.</p>
+    <div class="card" style="margin-bottom:18px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap">
+        <h3>Your events</h3>
+        <a class="btn btn-primary btn-sm" href="/advertise">List a new event</a>
       </div>
+      <div id="myEvents" style="margin-top:16px"><p>Loading&hellip;</p></div>
     </div>
-    <div id="heatmapWrap" style="margin-top:16px"><p>Loading heatmap…</p></div>
-  </div>
 
-  <div id="reportLoading" hidden style="text-align:center;padding:30px 0">
-    <div class="radar mini" id="reportRadar"></div>
-    <p style="margin-top:38px;font-size:.85rem;letter-spacing:.1em;text-transform:uppercase">Pulling verified data from the ER:LC API</p>
+    <div class="card" style="margin-bottom:18px">
+      <h3>Best time to host</h3>
+      <p style="font-size:.85rem;margin:6px 0 16px">Platform-wide average joins by day and hour (UTC) from every reported event. Brighter means busier.</p>
+      <div id="heatmapWrap"><p>Loading&hellip;</p></div>
+    </div>
+
+    <div id="reportLoading" hidden style="text-align:center;padding:30px 0">
+      <div class="radar mini" id="reportRadar"></div>
+      <p style="margin-top:38px;font-size:.85rem;letter-spacing:.1em;text-transform:uppercase">Pulling verified data from the ER:LC API</p>
+    </div>
+    <div id="reportOut"></div>
   </div>
-  <div id="reportOut"></div>
 </section>
 
 <footer id="footer"></footer>
