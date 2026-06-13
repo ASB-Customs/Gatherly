@@ -1,9 +1,9 @@
 // /api/auth - Discord OAuth login, session management
-
 import {
   json, redirect, usersStore, eventsStore, requireUser,
   makeSessionCookie, clearSessionCookie, encrypt,
 } from "../lib/util.js";
+import crypto from "node:crypto";
 
 const AUTH_URL = "https://discord.com/oauth2/authorize";
 const TOKEN_URL = "https://discord.com/api/oauth2/token";
@@ -16,8 +16,9 @@ export default async (req) => {
   const clientId = process.env.DISCORD_CLIENT_ID;
   const clientSecret = process.env.DISCORD_CLIENT_SECRET;
 
-  // ✅ FORCE YOUR REAL DOMAIN (NO GUESSING = NO ERRORS)
-  const SITE_URL = "https://bright-capybara-c7d7a5.netlify.app";
+  // Use the SITE_URL env var if set, otherwise fall back to the live domain.
+  // No trailing slash. Update SITE_URL in Netlify if the site is ever renamed.
+  const SITE_URL = (process.env.SITE_URL || "https://gatherly-events.netlify.app").replace(/\/$/, "");
 
   const redirectUri = `${SITE_URL}/api/auth?action=callback`;
 
@@ -91,7 +92,10 @@ export default async (req) => {
       ? `https://cdn.discordapp.com/avatars/${info.id}/${info.avatar}.png`
       : null;
 
+    // Preserve any existing fields (role, plan, erlcKeyEnc, etc.) on re-login.
+    const existing = (await store.get(userId, { type: "json" })) || {};
     await store.setJSON(userId, {
+      ...existing,
       id: userId,
       discordId: info.id,
       username: info.global_name || info.username,
