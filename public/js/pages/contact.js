@@ -1,48 +1,26 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Support - Gatherly</title>
-  <link rel="icon" href="/assets/favicon.png">
-  <link rel="preconnect" href="https://api.fontshare.com">
-  <link href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600&f[]=general-sans@400,500,600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css">
-  <link rel="stylesheet" href="/css/admin-additions.css">
-</head>
-<body>
-<nav id="nav"></nav>
+import { boot, api, esc, currentUser } from "/js/app.js";
+boot("/contact");
 
-<header class="section" style="padding-bottom:28px">
-  <div class="wrap">
-    <span class="kicker">Support</span>
-    <h1 style="font-size:clamp(2rem,4vw,3rem)">Talk to a person</h1>
-    <p style="margin-top:10px;max-width:520px">Logged in, your message opens a live chat with our team. Billing questions, broken reports, takedown requests, or Network plan enquiries.</p>
-  </div>
-</header>
+const $ = (id) => document.getElementById(id);
+const say = (text, ok = false) => { $("msg").innerHTML = `<div class="alert ${ok ? "alert-ok" : "alert-err"}">${ok ? text : esc(text)}</div>`; };
 
-<section class="wrap" style="padding-bottom:80px;max-width:640px">
-  <div class="card">
-    <div id="msg"></div>
-    <label class="field">Your Discord username <small>So we can reply if you're not logged in.</small>
-      <input id="from" maxlength="60" autocomplete="off">
-    </label>
-    <label class="field">Topic
-      <select id="topic">
-        <option>Billing</option><option>Reports not generating</option><option>Listing or content issue</option>
-        <option>Account or data request</option><option>Network plan</option><option>Something else</option>
-      </select>
-    </label>
-    <label class="field">Message
-      <textarea id="body" rows="5" maxlength="1500"></textarea>
-    </label>
-    <input class="hp" id="website" tabindex="-1" autocomplete="off" aria-hidden="true">
-    <button class="btn btn-primary" id="send">Start chat</button>
-  </div>
-</section>
+api("/api/auth?action=me").then((d) => {
+  if (d.user && $("from")) { $("from").value = d.user.username; $("from").placeholder = d.user.username; }
+}).catch(() => {});
 
-<footer id="footer"></footer>
-
-<script type="module" src="/js/pages/contact.js"></script>
-</body>
-</html>
+$("send").addEventListener("click", async () => {
+  if ($("website").value) return;
+  const topic = $("topic").value;
+  const subject = ($("subject")?.value || topic).trim();
+  const message = $("body").value.trim();
+  if (!message) return say("Type your message first.");
+  $("send").disabled = true;
+  try {
+    const d = await api("/api/tickets?action=create", { method: "POST", body: { topic, subject, message, website: $("website").value } });
+    say(`Sent. Our team will reply in your Discord DMs from the Gatherly bot${d.delivered ? "" : " (make sure you share a server with the bot and allow DMs)"}. You can also track it from your account.`, true);
+    $("body").value = "";
+  } catch (e) {
+    if (/log in/i.test(e.message)) say(`You need to log in first so we can reply to you. <a href="/api/auth?action=start">Continue with Discord</a>`, false);
+    else say(e.message);
+  } finally { $("send").disabled = false; }
+});
