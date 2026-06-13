@@ -14,9 +14,10 @@
 
 <header class="section" style="padding-bottom:28px">
   <div class="wrap">
+    <a href="/" class="back-home">&larr; Back to home</a>
     <span class="kicker">Settings</span>
     <h1 style="font-size:clamp(2rem,4vw,3rem)">Account settings</h1>
-    <p style="margin-top:10px;max-width:560px">Configure your ER:LC connection, report delivery, and account preferences.</p>
+    <p style="margin-top:10px;max-width:560px">Configure your ER:LC connection, report delivery, and account. Reach this page any time from the menu under your name.</p>
   </div>
 </header>
 
@@ -26,75 +27,69 @@
     <a class="btn btn-primary btn-sm" href="/api/auth?action=start" style="margin-top:12px">Continue with Discord</a>
   </div>
 
-  <div id="msg"></div>
+  <div id="body" style="display:grid;gap:18px">
+    <div id="msg"></div>
 
-  <div class="card" id="erlcCard">
-    <h3>ER:LC server API key</h3>
-    <p style="font-size:.88rem;margin:6px 0 14px">From in-game: Server Settings, then API. The server must own the ER:LC API Pack.</p>
+    <div class="card">
+      <h3>ER:LC server API key</h3>
+      <p style="font-size:.88rem;margin:6px 0 14px">From in-game: Server Settings, then API. The server must own the ER:LC API Pack.</p>
 
-    <div style="background:rgba(255,180,50,0.08);border:1px solid rgba(255,180,50,0.3);border-radius:10px;padding:14px 16px;margin-bottom:16px">
-      <div style="display:flex;align-items:flex-start;gap:10px">
-        <span style="font-size:1.2rem;flex-shrink:0">⚠️</span>
-        <div>
-          <div style="font-weight:700;color:rgba(255,200,80,0.95);font-size:.9rem;margin-bottom:4px">Security notice - read before submitting</div>
-          <div style="font-size:.83rem;color:rgba(255,200,80,0.75);line-height:1.5">Your ER:LC API key grants full administrative access to your private server - including the ability to read all server data and player activity. <b style="color:rgba(255,200,80,0.95)">Do not share this key outside of this domain.</b> On Gatherly, your key is encrypted at rest using AES-256-GCM and stored in a secure, isolated environment that is not accessible by any staff member or third party. It is only used to read statistics during your event window. Gatherly never issues commands to your server. This is governed by our <a href="/terms" style="color:rgba(255,200,80,0.9)">Terms of Service</a> and <a href="/privacy" style="color:rgba(255,200,80,0.9)">Privacy Policy</a>.</div>
-        </div>
+      <div style="background:rgba(255,180,50,0.08);border:1px solid rgba(255,180,50,0.3);border-radius:10px;padding:14px 16px;margin-bottom:16px">
+        <div style="font-weight:700;color:rgba(255,200,80,0.95);font-size:.9rem;margin-bottom:6px">Security notice - read before you submit</div>
+        <div style="font-size:.83rem;color:rgba(255,200,80,0.78);line-height:1.55">Your ER:LC API key grants powerful access to your private server, including reading all server data and player activity. <b style="color:rgba(255,200,80,0.95)">Never share this key outside of this domain.</b> On Gatherly it is encrypted at rest with AES-256-GCM, stored in an isolated environment that no staff member or third party can read, and used only to pull statistics during your event window. Gatherly never sends commands to your server. This is governed by our <a href="/terms" style="color:rgba(255,200,80,0.9)">Terms of Service</a> and <a href="/privacy" style="color:rgba(255,200,80,0.9)">Privacy Policy</a>.</div>
       </div>
+
+      <label class="field">API key
+        <input id="erlcKey" type="password" placeholder="Paste your server key" autocomplete="off">
+      </label>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" id="saveKey">Save key (encrypted)</button>
+        <button class="btn btn-ghost btn-sm" id="testKey">Test connection</button>
+        <button class="btn btn-danger btn-sm" id="removeKey">Remove key</button>
+      </div>
+      <div id="keyStatus" style="margin-top:12px"></div>
     </div>
 
-    <label class="field">API key
-      <input id="erlcKey" type="password" placeholder="Paste your server key" autocomplete="off">
-    </label>
-    <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <button class="btn btn-primary btn-sm" id="saveKey">Save key (encrypted)</button>
-      <button class="btn btn-ghost btn-sm" id="testKey">Test connection</button>
-      <button class="btn btn-danger btn-sm" id="removeKey">Remove key</button>
+    <div class="card">
+      <h3>Report delivery</h3>
+      <p style="font-size:.88rem;margin:6px 0 14px">Reports always render in your dashboard. They can also reach you on Discord.</p>
+      <label class="field">Discord webhook <small>Posts each report into a channel you control.</small>
+        <input id="webhook" placeholder="https://discord.com/api/webhooks/..." autocomplete="off">
+      </label>
+      <label class="field" style="display:flex;align-items:center;gap:10px;font-weight:500">
+        <input type="checkbox" id="dmOptIn" style="width:auto;margin:0">
+        DM me each report via the Gatherly bot <small style="margin:0 0 0 4px">(you must share a server with the bot and allow DMs)</small>
+      </label>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" id="saveDelivery">Save delivery settings</button>
+        <button class="btn btn-ghost btn-sm" id="removeWebhook">Remove webhook</button>
+      </div>
+      <div id="deliveryMsg" style="margin-top:10px"></div>
     </div>
-    <div id="keyStatus" style="margin-top:12px"></div>
-  </div>
 
-  <div class="card">
-    <h3>Report delivery</h3>
-    <p style="font-size:.88rem;margin:6px 0 14px">Reports always render in your dashboard. They can also reach you on Discord.</p>
-    <label class="field">Discord webhook <small>Posts each report into a channel you control. Server Settings, Integrations, Webhooks, then copy the URL.</small>
-      <input id="webhook" placeholder="https://discord.com/api/webhooks/…" autocomplete="off">
-    </label>
-    <label class="field" style="display:flex;align-items:center;gap:10px;font-weight:500">
-      <input type="checkbox" id="dmOptIn" style="width:auto;margin:0">
-      DM me each report via the Gatherly bot <small style="margin:0 0 0 4px">(you must share a server with the bot and allow DMs)</small>
-    </label>
-    <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <button class="btn btn-primary btn-sm" id="saveDelivery">Save delivery settings</button>
-      <button class="btn btn-ghost btn-sm" id="removeWebhook">Remove webhook</button>
-    </div>
-    <div id="deliveryMsg" style="margin-top:10px"></div>
-  </div>
-
-  <div class="card" id="staffCard" hidden>
-    <h3>Staff access</h3>
-    <div id="staffStatus"></div>
-    <label class="field" style="margin-top:14px">Access code
-      <input id="staffCode" autocomplete="off" placeholder="GATH-XXXX-XXXX or executive setup code">
-    </label>
-    <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <div class="card">
+      <h3>Staff access</h3>
+      <div id="staffStatus"></div>
+      <label class="field" style="margin-top:14px">Access code
+        <input id="staffCode" autocomplete="off" placeholder="GATH-XXXX-XXXX">
+      </label>
       <button class="btn btn-primary btn-sm" id="redeemStaff">Redeem code</button>
-      <button class="btn btn-ghost btn-sm" id="claimExecStaff">Use as executive setup code</button>
+      <div id="staffMsg" style="margin-top:10px"></div>
     </div>
-    <div id="staffMsg" style="margin-top:10px"></div>
-  </div>
 
-  <div class="card">
-    <h3>Diagnostics</h3>
-    <p style="font-size:.85rem;margin:6px 0 14px">Run a self-test to verify your ER:LC key, bot DM, webhook, and API connections.</p>
-    <button class="btn btn-ghost btn-sm" id="runDiag">Run diagnostics</button>
-    <div id="diagOut" style="margin-top:14px"></div>
-  </div>
+    <div class="card">
+      <h3>Diagnostics</h3>
+      <p style="font-size:.85rem;margin:6px 0 14px">Self-test your ER:LC key, bot, webhook, and AI configuration.</p>
+      <button class="btn btn-ghost btn-sm" id="runDiag">Run diagnostics</button>
+      <div id="diagOut" style="margin-top:14px"></div>
+    </div>
 
-  <div class="card" style="border-color:rgba(255,100,100,0.2)">
-    <h3>Account</h3>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
-      <button class="btn btn-ghost btn-sm" id="logout">Sign out</button>
-      <button class="btn btn-danger btn-sm" id="deleteAccount">Delete account</button>
+    <div class="card" style="border-color:rgba(255,100,100,0.2)">
+      <h3>Account</h3>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+        <button class="btn btn-ghost btn-sm" id="logout">Sign out</button>
+        <button class="btn btn-danger btn-sm" id="deleteAccount">Delete account</button>
+      </div>
     </div>
   </div>
 </section>
