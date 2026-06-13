@@ -11,8 +11,157 @@
   <link rel="preconnect" href="https://api.fontshare.com">
   <link href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600&f[]=general-sans@400,500,600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body { overflow-x: hidden; }
+
+    /* --- ambient orbs --- */
+    .orb-layer { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+    .orb { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0; animation: orb-drift linear infinite; }
+    .orb-1 { width: 560px; height: 560px; background: radial-gradient(circle, rgba(62,108,224,0.28) 0%, transparent 70%); top: -180px; left: -120px; animation-duration: 28s; animation-delay: 0s; }
+    .orb-2 { width: 480px; height: 480px; background: radial-gradient(circle, rgba(127,168,255,0.18) 0%, transparent 70%); top: 30%; right: -160px; animation-duration: 34s; animation-delay: -10s; }
+    .orb-3 { width: 420px; height: 420px; background: radial-gradient(circle, rgba(62,108,224,0.14) 0%, transparent 70%); bottom: 10%; left: 20%; animation-duration: 40s; animation-delay: -22s; }
+    @keyframes orb-drift {
+      0%   { opacity: 0;  transform: translate(0px,0px) scale(1); }
+      10%  { opacity: 1; }
+      50%  { transform: translate(40px,-60px) scale(1.08); }
+      90%  { opacity: 1; }
+      100% { opacity: 0;  transform: translate(0px,0px) scale(1); }
+    }
+
+    /* all content above the orb layer */
+    #nav, .hero, .ticker-wrap, .section, footer { position: relative; z-index: 1; }
+
+    /* --- glass nav --- */
+    .nav {
+      background: rgba(9,13,19,0.55) !important;
+      backdrop-filter: blur(22px) saturate(160%);
+      -webkit-backdrop-filter: blur(22px) saturate(160%);
+      border-bottom: 1px solid rgba(148,170,205,0.10) !important;
+    }
+
+    /* --- hero entrance animations --- */
+    .hero { padding: 110px 0 100px; overflow: visible; }
+    .hero-grid { gap: 64px; }
+    .hero h1       { opacity: 0; transform: translateY(36px); animation: fade-up 0.9s cubic-bezier(0.22,1,0.36,1) 0.10s forwards; }
+    .hero p.lede   { opacity: 0; transform: translateY(24px); animation: fade-up 0.9s cubic-bezier(0.22,1,0.36,1) 0.28s forwards; }
+    .hero-actions  { opacity: 0; transform: translateY(20px); animation: fade-up 0.9s cubic-bezier(0.22,1,0.36,1) 0.42s forwards; }
+    .hero-pulse    { opacity: 0; animation: fade-up 0.7s cubic-bezier(0.22,1,0.36,1) 0s forwards; background: rgba(255,255,255,0.04); border: 1px solid rgba(148,170,205,0.18) !important; backdrop-filter: blur(10px); }
+    @keyframes fade-up { to { opacity: 1; transform: none; } }
+
+    .radar { opacity: 0; transform: scale(0.88); animation: radar-in 1.1s cubic-bezier(0.22,1,0.36,1) 0.35s forwards; }
+    @keyframes radar-in { to { opacity: 1; transform: scale(1); } }
+
+    /* --- glass cards --- */
+    .card {
+      background: rgba(255,255,255,0.034) !important;
+      backdrop-filter: blur(18px) saturate(140%);
+      -webkit-backdrop-filter: blur(18px) saturate(140%);
+      border: 1px solid rgba(148,170,205,0.13) !important;
+      transition: transform 0.28s cubic-bezier(0.22,1,0.36,1), border-color 0.28s ease, box-shadow 0.28s ease;
+    }
+    .card:hover {
+      transform: translateY(-5px) scale(1.012);
+      border-color: rgba(127,168,255,0.32) !important;
+      box-shadow: 0 24px 60px -16px rgba(62,108,224,0.22), 0 0 0 1px rgba(127,168,255,0.10);
+    }
+
+    /* --- glass stat tiles --- */
+    .stat {
+      background: rgba(255,255,255,0.03) !important;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(148,170,205,0.12) !important;
+      transition: transform 0.28s cubic-bezier(0.22,1,0.36,1), border-color 0.28s ease;
+    }
+    .stat:hover { transform: translateY(-4px); border-color: rgba(127,168,255,0.28) !important; }
+    .stat b {
+      background: linear-gradient(135deg, #fff 30%, var(--signal));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+
+    /* --- section dividers --- */
+    .section + .section { border-top: 1px solid rgba(127,168,255,0.10) !important; }
+
+    /* --- buttons --- */
+    .btn-primary {
+      background: linear-gradient(135deg, #5a8fff 0%, #3e6ce0 100%);
+      color: #fff;
+      position: relative; overflow: hidden;
+      transition: transform 0.18s ease, box-shadow 0.3s ease, background 0.2s ease;
+    }
+    .btn-primary::after { content: ""; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,0.18) 0%, transparent 60%); pointer-events: none; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 28px 4px rgba(127,168,255,0.35); background: linear-gradient(135deg, #7aadff 0%, #5a8fff 100%); }
+    .btn-ghost {
+      background: rgba(255,255,255,0.04);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(148,170,205,0.22) !important;
+      transition: transform 0.18s ease, border-color 0.2s ease, background 0.2s ease;
+    }
+    .btn-ghost:hover { transform: translateY(-2px); background: rgba(127,168,255,0.08); border-color: rgba(127,168,255,0.45) !important; }
+
+    /* --- particle canvas --- */
+    #particleCanvas { position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: 0.45; }
+
+    /* --- ticker --- */
+    .ticker-wrap {
+      background: rgba(255,255,255,0.025) !important;
+      backdrop-filter: blur(12px);
+      border-top: 1px solid rgba(148,170,205,0.10) !important;
+      border-bottom: 1px solid rgba(148,170,205,0.10) !important;
+    }
+
+    /* --- CTA section glow --- */
+    .cta-section { position: relative; overflow: hidden; }
+    .cta-section::before { content: ""; position: absolute; inset: -2px; background: linear-gradient(180deg, transparent 0%, rgba(62,108,224,0.08) 50%, transparent 100%); pointer-events: none; }
+    .cta-section .wrap { position: relative; }
+
+    /* --- mock panels --- */
+    .mock { background: rgba(0,0,0,0.28) !important; border: 1px solid rgba(148,170,205,0.10) !important; backdrop-filter: blur(6px); }
+
+    /* --- gradient headings --- */
+    .section h2 {
+      background: linear-gradient(135deg, #e9eef6 40%, rgba(127,168,255,0.85));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+
+    /* --- mouse parallax wrapper --- */
+    .hero-parallax { will-change: transform; }
+
+    /* --- scroll reveal (spring) --- */
+    @keyframes glass-shimmer {
+      0%   { opacity: 0; transform: translateY(28px) scale(0.97); }
+      100% { opacity: 1; transform: none; }
+    }
+    .reveal { opacity: 0; transform: translateY(26px); transition: none !important; }
+    .reveal.in { animation: glass-shimmer 0.6s cubic-bezier(0.22,1,0.36,1) both; }
+
+    /* --- floating radar badge --- */
+    .hero-float-badge {
+      position: absolute; right: -18px; top: 18px;
+      background: rgba(255,255,255,0.06); backdrop-filter: blur(14px);
+      border: 1px solid rgba(127,168,255,0.25); border-radius: 12px;
+      padding: 10px 16px; font-size: 0.78rem; color: var(--signal);
+      font-weight: 600; letter-spacing: 0.06em;
+      animation: float-y 4s ease-in-out infinite; pointer-events: none;
+    }
+    @keyframes float-y { 0%,100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
+
+    /* --- footer --- */
+    footer { background: rgba(9,13,19,0.5); backdrop-filter: blur(12px); border-top: 1px solid rgba(148,170,205,0.10) !important; }
+
+    @media (max-width: 900px) { .hero-float-badge { display: none; } }
+  </style>
 </head>
 <body>
+
+<div class="orb-layer" aria-hidden="true">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+</div>
+
+<canvas id="particleCanvas" aria-hidden="true"></canvas>
+
 <nav id="nav"></nav>
 
 <header class="hero">
@@ -26,7 +175,10 @@
         <a class="btn btn-ghost" href="/events">Browse live events</a>
       </div>
     </div>
-    <div class="radar" id="heroRadar" aria-hidden="false"></div>
+    <div class="hero-parallax" style="position:relative">
+      <div class="radar" id="heroRadar" aria-hidden="false"></div>
+      <div class="hero-float-badge">Live data feed</div>
+    </div>
   </div>
 </header>
 
@@ -106,7 +258,7 @@
   </div>
 </section>
 
-<section class="section">
+<section class="section cta-section">
   <div class="wrap" style="text-align:center">
     <div class="reveal">
       <h2>Your next event deserves a full server</h2>
@@ -119,5 +271,72 @@
 <footer id="footer"></footer>
 
 <script type="module" src="/js/pages/index.js"></script>
+<script>
+  (function () {
+    /* --- particles --- */
+    const canvas = document.getElementById("particleCanvas");
+    const ctx = canvas.getContext("2d");
+    let W, H, particles = [];
+    function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+    resize();
+    window.addEventListener("resize", resize, { passive: true });
+    function rand(a, b) { return a + Math.random() * (b - a); }
+    function spawn() {
+      return { x: Math.random()*W, y: Math.random()*H, r: rand(0.6,1.8), vx: rand(-0.12,0.12), vy: rand(-0.25,-0.06), alpha: rand(0.1,0.55), life: 0, maxLife: rand(180,420) };
+    }
+    for (let i = 0; i < 80; i++) { const p = spawn(); p.life = Math.random()*p.maxLife; particles.push(p); }
+    function draw() {
+      ctx.clearRect(0,0,W,H);
+      for (const p of particles) {
+        const t = p.life/p.maxLife;
+        const fade = t < 0.12 ? t/0.12 : t > 0.82 ? (1-t)/0.18 : 1;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+        ctx.fillStyle = `rgba(127,168,255,${p.alpha*fade})`; ctx.fill();
+        p.x += p.vx; p.y += p.vy; p.life++;
+        if (p.life >= p.maxLife) { Object.assign(p, spawn()); p.life = 0; }
+      }
+      requestAnimationFrame(draw);
+    }
+    draw();
+
+    /* --- mouse parallax --- */
+    const parallaxEl = document.querySelector(".hero-parallax");
+    if (parallaxEl) {
+      let tx = 0, ty = 0, cx = 0, cy = 0;
+      document.addEventListener("mousemove", (e) => {
+        tx = ((e.clientX - window.innerWidth/2)  / (window.innerWidth/2))  * 14;
+        ty = ((e.clientY - window.innerHeight/2) / (window.innerHeight/2)) * 10;
+      }, { passive: true });
+      (function lerp() {
+        cx += (tx-cx)*0.07; cy += (ty-cy)*0.07;
+        parallaxEl.style.transform = `translate(${cx}px,${cy}px)`;
+        requestAnimationFrame(lerp);
+      })();
+    }
+
+    /* --- scroll reveal --- */
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); observer.unobserve(e.target); } });
+    }, { threshold: 0.12 });
+    document.querySelectorAll(".reveal").forEach((el) => observer.observe(el));
+
+    /* --- card tilt --- */
+    document.querySelectorAll(".card").forEach((card) => {
+      card.addEventListener("mousemove", (e) => {
+        const r = card.getBoundingClientRect();
+        const x = ((e.clientX-r.left)/r.width  - 0.5)*10;
+        const y = ((e.clientY-r.top) /r.height - 0.5)*10;
+        card.style.transform = `translateY(-5px) perspective(600px) rotateY(${x}deg) rotateX(${-y}deg) scale(1.012)`;
+      });
+      card.addEventListener("mouseleave", () => { card.style.transform = ""; });
+    });
+
+    /* --- reduced motion --- */
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      canvas.style.display = "none";
+      document.querySelectorAll(".orb").forEach((o) => o.style.animation = "none");
+    }
+  })();
+</script>
 </body>
 </html>
